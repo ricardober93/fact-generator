@@ -89,4 +89,6 @@
 - [x] 8.4 Comprobar que ningún archivo bajo `src/invoice/render/` importa
       `@wabot-dev/framework` sin el sufijo `/ui`.
 - [ ] 8.5 Comprobar en Chrome y en Firefox que el pie `position: fixed` se repite al
-      imprimir, y anotar el resultado en `design.md`.
+      imprimir. NO EJECUTADA: se archiva como limitación conocida, anotada en `design.md`.
+      Chromium es el objetivo declarado; Firefox queda sin verificar. Se comprueba abriendo
+      `src/invoice/render/__fixtures__/invoice.golden.html` y pulsando Ctrl+P.

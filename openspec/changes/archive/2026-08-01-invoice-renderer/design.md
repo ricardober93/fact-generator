@@ -95,8 +95,19 @@ insuficiente, paged.js sigue siendo una decisión reversible y aislada en un sol
 
 **`position: fixed` para el pie se comporta distinto entre navegadores** → Chrome lo repite
 en cada página impresa; el soporte fuera de Chromium es más irregular. Dado que el PDF sale
-de Ctrl+P y el producto es propio, el objetivo declarado es Chromium. Conviene comprobarlo
-en Firefox antes de prometer nada.
+de Ctrl+P y el producto es propio, el objetivo declarado es **Chromium**.
+
+**Limitación conocida al archivar este cambio:** la comprobación en navegador real (tarea
+8.5) NO se ejecutó. Automatizarla solo habría demostrado el caso Chromium, porque
+`page.pdf()` de Playwright es exclusivo de Chromium — justo el navegador que ya se da por
+bueno. Firefox sigue sin verificar y requiere abrir la vista previa de impresión a mano.
+
+Para hacerlo: abrir `openspec/changes/archive/2026-08-01-invoice-renderer/` no; el archivo
+que hay que abrir es `src/invoice/render/__fixtures__/invoice.golden.html`, que está
+commiteado y contiene una factura de tres ítems. Ctrl+P y comprobar si el pie aparece en
+todas las hojas. Si Firefox no lo repite, la salida no es cambiar de técnica sino declarar
+Chromium como requisito del producto, que es lo que ya asume la decisión de PDF por
+impresión.
 
 **Un dato obligatorio ausente rompe el render entero** → Es lo pedido, pero significa que el
 embed puede quedarse en blanco por un campo. El error nombra todas las rutas ausentes, de
