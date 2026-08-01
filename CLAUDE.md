@@ -7,3 +7,4 @@
 - No deben existir dependencias circulares.
 - El naming debe ser explicito para que se entienda.
 - Aplica siempre principios solid
+- Nunca usar Any, siempre tipar

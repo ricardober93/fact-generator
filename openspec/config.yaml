@@ -136,8 +136,11 @@ rules:
     - 'No repetir ARCHITECTURE.md: referenciarlo y documentar solo lo que este cambio
       añade o contradice.'
     - Justificar cada dependencia npm nueva contra la alternativa nativa o ya instalada.
-  spec:
+  specs:
     - Escribir en español.
+    - 'El validador exige el token literal SHALL o MUST en cada requisito. Escribir la
+      forma normativa en castellano acompañada del token: "DEBE (MUST)" y
+      "NO DEBE (MUST NOT)" en la primera frase normativa de cada requisito.'
     - 'Los requisitos del motor de render deben ser verificables sin servidor ni base
       de datos: son sobre una función pura.'
   tasks:
