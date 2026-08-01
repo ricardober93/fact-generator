@@ -15,10 +15,17 @@ en línea del contenedor: un `position: fixed` en línea se posicionaría respec
 sacaría el pie del papel en cualquier superficie que embeba el documento, como el lienzo del
 editor.
 
-#### Scenario: El pie se emite una vez y en flujo en pantalla
+#### Scenario: El pie se emite una vez y se posiciona fijo
 
 - **WHEN** se renderiza un documento con bloques en `pageFooter`
-- **THEN** aparece una sola vez en el marcado y su contenedor no lleva `position: fixed` en línea
+- **THEN** aparece una sola vez en el marcado, y queda fijo respecto a la página al imprimir,
+  nunca mediante un `position: fixed` en línea en su contenedor
+
+#### Scenario: En pantalla el pie queda en el flujo del documento
+
+- **WHEN** se inspecciona el contenedor del pie de un documento renderizado
+- **THEN** no lleva `position: fixed` en línea, de modo que en pantalla queda al final del
+  documento y no anclado al viewport
 
 #### Scenario: Al imprimir el pie se fija a la página
 

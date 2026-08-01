@@ -3,9 +3,7 @@
 ## Purpose
 
 TBD - created by archiving change invoice-renderer. Update Purpose after archive.
-
 ## Requirements
-
 ### Requirement: El render es una función pura e isomorfa
 
 `render(doc, data, params, assets)` DEBE (MUST) ser una función pura: sin IO, sin acceso a
@@ -63,13 +61,42 @@ impresa sin código nuestro.
 
 ### Requirement: El pie se repite en cada página impresa
 
-El bloque `pageFooter` DEBE (MUST) emitirse con `position: fixed` respecto a la página, que
-es el mecanismo por el que el navegador lo reproduce en cada hoja al imprimir.
+El bloque `pageFooter` DEBE (MUST) emitirse fijo respecto a la página **solo bajo `@media print`**,
+que es el mecanismo por el que el navegador lo reproduce en cada hoja al imprimir. En pantalla el
+pie DEBE (MUST) quedar en el flujo del documento, al final del mismo.
+
+Al imprimir, el contenedor del pie DEBE (MUST) ocupar el ancho útil del documento y quedar
+alineado con la columna del resto de las bandas; NO DEBE (MUST NOT) extenderse hasta los bordes
+del papel.
+
+La regla se emite en la hoja de estilo del documento, junto a la de `@page`, y no como estilo
+en línea del contenedor: un `position: fixed` en línea se posicionaría respecto al viewport y
+sacaría el pie del papel en cualquier superficie que embeba el documento, como el lienzo del
+editor.
 
 #### Scenario: El pie se emite una vez y se posiciona fijo
 
 - **WHEN** se renderiza un documento con bloques en `pageFooter`
-- **THEN** aparece una sola vez en el marcado, dentro de un contenedor con `position: fixed`
+- **THEN** aparece una sola vez en el marcado, y queda fijo respecto a la página al imprimir,
+  nunca mediante un `position: fixed` en línea en su contenedor
+
+#### Scenario: En pantalla el pie queda en el flujo del documento
+
+- **WHEN** se inspecciona el contenedor del pie de un documento renderizado
+- **THEN** no lleva `position: fixed` en línea, de modo que en pantalla queda al final del
+  documento y no anclado al viewport
+
+#### Scenario: Al imprimir el pie se fija a la página
+
+- **WHEN** se inspecciona la hoja de estilo que emite el documento
+- **THEN** contiene, dentro de `@media print`, la regla que fija el contenedor del pie al pie de
+  la página
+
+#### Scenario: El pie impreso se alinea con la columna del documento
+
+- **WHEN** se inspecciona la regla de impresión del pie de un documento cuya página tiene
+  márgenes laterales
+- **THEN** el ancho declarado es el ancho útil del documento, y no el ancho total del papel
 
 ### Requirement: Geometría en milímetros
 
@@ -165,3 +192,23 @@ aparecer como caracteres visibles y nunca interpretarse como marcado.
 
 - **WHEN** un fragmento declara la marca `bold`
 - **THEN** se emite con el peso correspondiente, sin concatenar HTML a mano
+
+### Requirement: El marcado identifica su banda y sus bloques
+
+Cada contenedor de banda DEBE (MUST) emitir el nombre de su banda y cada contenedor de bloque el
+identificador de su bloque, como atributos de datos del marcado. Es lo que permite a una
+superficie de edición medir la geometría ya maquetada en vez de recalcularla.
+
+Estos atributos NO DEBEN (MUST NOT) alterar la presentación del documento.
+
+#### Scenario: La banda se identifica en el marcado
+
+- **WHEN** se renderiza un documento con bloques en `header` y en `summary`
+- **THEN** cada contenedor de banda lleva un atributo de datos con el nombre de su banda
+
+#### Scenario: El bloque se identifica en el marcado
+
+- **WHEN** se renderiza una banda con varios bloques
+- **THEN** el contenedor de cada bloque lleva un atributo de datos con el identificador de ese
+  bloque, distinto para cada uno
+
