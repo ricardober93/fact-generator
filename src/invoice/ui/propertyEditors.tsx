@@ -10,6 +10,7 @@ import {
 import { TextContentEditor } from './TextContentEditor'
 
 export interface IPropertyEditorProps {
+  id: string
   name: string
   type: IPropType
   value: IPropValue
@@ -24,25 +25,23 @@ export interface IAssetChoice {
   label: string
 }
 
-const FIELD_STYLE = { width: '100%', minWidth: 0 }
-
-function StringEditor({ value, onChange }: IPropertyEditorProps): VNode {
+function StringEditor({ id, value, onChange }: IPropertyEditorProps): VNode {
   return (
     <input
+      id={id}
       type="text"
-      style={FIELD_STYLE}
       value={String(value ?? '')}
       onInput={(event) => onChange((event.currentTarget as HTMLInputElement).value)}
     />
   )
 }
 
-function NumberEditor({ value, onChange }: IPropertyEditorProps): VNode {
+function NumberEditor({ id, value, onChange }: IPropertyEditorProps): VNode {
   return (
     <input
+      id={id}
       type="number"
       step="any"
-      style={FIELD_STYLE}
       value={Number(value ?? 0)}
       onInput={(event) => {
         const parsed = Number((event.currentTarget as HTMLInputElement).value)
@@ -52,9 +51,10 @@ function NumberEditor({ value, onChange }: IPropertyEditorProps): VNode {
   )
 }
 
-function BooleanEditor({ value, onChange }: IPropertyEditorProps): VNode {
+function BooleanEditor({ id, value, onChange }: IPropertyEditorProps): VNode {
   return (
     <input
+      id={id}
       type="checkbox"
       checked={value === true}
       onChange={(event) => onChange((event.currentTarget as HTMLInputElement).checked)}
@@ -62,10 +62,10 @@ function BooleanEditor({ value, onChange }: IPropertyEditorProps): VNode {
   )
 }
 
-function EnumEditor({ type, value, onChange }: IPropertyEditorProps): VNode {
+function EnumEditor({ id, type, value, onChange }: IPropertyEditorProps): VNode {
   return (
     <select
-      style={FIELD_STYLE}
+      id={id}
       value={String(value ?? '')}
       onChange={(event) => onChange((event.currentTarget as HTMLSelectElement).value)}
     >
@@ -78,10 +78,10 @@ function EnumEditor({ type, value, onChange }: IPropertyEditorProps): VNode {
   )
 }
 
-function TokenEditor({ value, doc, onChange }: IPropertyEditorProps): VNode {
+function TokenEditor({ id, value, doc, onChange }: IPropertyEditorProps): VNode {
   return (
     <select
-      style={FIELD_STYLE}
+      id={id}
       value={String(value ?? '')}
       onChange={(event) => onChange((event.currentTarget as HTMLSelectElement).value)}
     >
@@ -95,16 +95,16 @@ function TokenEditor({ value, doc, onChange }: IPropertyEditorProps): VNode {
 }
 
 function AssetEditor(props: IPropertyEditorProps): VNode {
-  const { value, doc, assets, onThemeChange } = props
+  const { id, value, doc, assets, onThemeChange } = props
   if (!isTokenReference(value)) {
-    return <p style={{ fontSize: '12px', color: '#a00' }}>Esta propiedad no referencia un token.</p>
+    return <p class="badge badge-warning">Esta propiedad no referencia un token.</p>
   }
   const token = tokenName(value)
   const current = String(doc.theme[token] ?? '')
   return (
-    <>
+    <div class="stack-sm">
       <select
-        style={FIELD_STYLE}
+        id={id}
         value={current}
         onChange={(event) => onThemeChange(token, (event.currentTarget as HTMLSelectElement).value)}
       >
@@ -115,10 +115,8 @@ function AssetEditor(props: IPropertyEditorProps): VNode {
           </option>
         ))}
       </select>
-      <p style={{ fontSize: '11px', color: '#666', margin: '2px 0 0' }}>
-        El bloque referencia @{token}; la imagen se elige en el tema.
-      </p>
-    </>
+      <p class="faint">El bloque referencia @{token}; la imagen se elige en el tema.</p>
+    </div>
   )
 }
 

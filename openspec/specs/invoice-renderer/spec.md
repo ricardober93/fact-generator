@@ -3,7 +3,9 @@
 ## Purpose
 
 TBD - created by archiving change invoice-renderer. Update Purpose after archive.
+
 ## Requirements
+
 ### Requirement: El render es una función pura e isomorfa
 
 `render(doc, data, params, assets)` DEBE (MUST) ser una función pura: sin IO, sin acceso a
@@ -211,4 +213,3 @@ Estos atributos NO DEBEN (MUST NOT) alterar la presentación del documento.
 - **WHEN** se renderiza una banda con varios bloques
 - **THEN** el contenedor de cada bloque lleva un atributo de datos con el identificador de ese
   bloque, distinto para cada uno
-

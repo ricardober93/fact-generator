@@ -114,19 +114,13 @@ export function Canvas({ store, assets }: { store: IEditorStore; assets: Record<
   return (
     <div
       ref={surface}
+      data-document-surface="true"
+      class="wb-paper"
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
       onPointerUp={onPointerUp}
       onPointerCancel={onPointerUp}
-      style={{
-        position: 'relative',
-        width: `${usableWidthMm(doc.page)}mm`,
-        margin: '0 auto',
-        background: '#fff',
-        boxShadow: '0 1px 4px rgba(0,0,0,.2)',
-        touchAction: 'none',
-        userSelect: 'none',
-      }}
+      style={{ width: `${usableWidthMm(doc.page)}mm` }}
     >
       {render({ doc, data: sample.data, items: [sample.item], assets })}
       <Selection store={store} preview={preview} surface={surface} />
@@ -160,7 +154,7 @@ function Selection({ store, preview, surface }: ISelectionProps): VNode | null {
       style={{
         position: 'absolute',
         pointerEvents: 'none',
-        outline: '1px solid #0a58ca',
+        outline: '1px solid rgb(var(--c-focus))',
         left: `${bandBox.left - surfaceBox.left + rect.xMm * scale}px`,
         top: `${bandBox.top - surfaceBox.top + rect.yMm * scale}px`,
         width: `${rect.widthMm * scale}px`,
@@ -175,7 +169,7 @@ function Selection({ store, preview, surface }: ISelectionProps): VNode | null {
           bottom: `${-HANDLE_PX / 2}px`,
           width: `${HANDLE_PX}px`,
           height: `${HANDLE_PX}px`,
-          background: '#0a58ca',
+          background: 'rgb(var(--c-focus))',
           cursor: 'nwse-resize',
           pointerEvents: 'auto',
         }}

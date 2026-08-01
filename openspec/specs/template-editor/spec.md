@@ -1,8 +1,11 @@
 # template-editor Specification
 
 ## Purpose
+
 TBD - created by archiving change template-builder. Update Purpose after archive.
+
 ## Requirements
+
 ### Requirement: El lienzo pinta con el mismo render que el embed
 
 El editor DEBE (MUST) pintar el documento en edición invocando la misma función `render()` que
@@ -221,4 +224,3 @@ los middlewares y el editor es una superficie de escritura.
 
 - **WHEN** se inspeccionan las vistas que declara el controlador del editor
 - **THEN** ninguna declara generación estática
-

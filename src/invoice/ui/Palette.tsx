@@ -1,3 +1,4 @@
+import type { VNode } from '@wabot-dev/framework/ui'
 import { BAND_NAMES, type IBandName } from '../render/document'
 import { blockKinds } from '../render/blocks/registry'
 import { addBlock } from './documentEdits'
@@ -11,7 +12,7 @@ const BAND_LABELS: Record<IBandName, string> = {
   pageFooter: 'Pie de página',
 }
 
-export function Palette({ store }: { store: IEditorStore }) {
+export function Palette({ store }: { store: IEditorStore }): VNode {
   const band = store.selectedBand.value
 
   function insert(kind: string): void {
@@ -22,38 +23,36 @@ export function Palette({ store }: { store: IEditorStore }) {
   }
 
   return (
-    <aside style={{ display: 'grid', gap: '12px', minWidth: 0 }}>
-      <div>
-        <h2 style={{ fontSize: '13px', margin: '0 0 6px' }}>Banda</h2>
+    <aside class="stack">
+      <fieldset class="stack-sm">
+        <legend>Banda</legend>
+        <label for="editor-band">Banda activa</label>
         <select
+          id="editor-band"
           value={band ?? ''}
           onChange={(event) => {
             const chosen = (event.currentTarget as HTMLSelectElement).value
             store.select(chosen ? (chosen as IBandName) : null, null)
           }}
-          style={{ width: '100%' }}
         >
-          <option value="">Ninguna seleccionada</option>
+          <option value="">Ninguna</option>
           {BAND_NAMES.map((name) => (
             <option key={name} value={name}>
               {BAND_LABELS[name]}
             </option>
           ))}
         </select>
-      </div>
+      </fieldset>
 
-      <div>
-        <h2 style={{ fontSize: '13px', margin: '0 0 6px' }}>Bloques</h2>
-        {!band && (
-          <p style={{ fontSize: '12px', color: '#666', margin: '0 0 6px' }}>
-            Selecciona una banda para insertar.
-          </p>
-        )}
-        <div style={{ display: 'grid', gap: '4px' }}>
+      <fieldset class="stack-sm">
+        <legend>Bloques</legend>
+        {!band ? <p class="muted">Elige una banda para insertar.</p> : null}
+        <div class="wb-palette">
           {blockKinds().map((kind) => (
             <button
               key={kind}
               type="button"
+              class="btn btn-secondary btn-sm"
               disabled={!band}
               data-palette-kind={kind}
               onClick={() => insert(kind)}
@@ -62,7 +61,7 @@ export function Palette({ store }: { store: IEditorStore }) {
             </button>
           ))}
         </div>
-      </div>
+      </fieldset>
     </aside>
   )
 }

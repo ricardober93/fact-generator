@@ -13,6 +13,7 @@ import { AssetRepository } from './models/asset/AssetRepository'
 import { Template } from './models/template/Template'
 import { TemplateRepository } from './models/template/TemplateRepository'
 import { emptyDocument, type IDocument } from './render/document'
+import { AppLayout } from './ui/AppLayout'
 import Editor from './ui/Editor.island'
 import type { IAssetChoice } from './ui/propertyEditors'
 
@@ -73,25 +74,44 @@ function assetChoices(assets: Asset[]): IAssetChoice[] {
 
 function TemplateList({ templates }: { templates: Template[] }): VNode {
   return (
-    <main style={{ fontFamily: 'system-ui, sans-serif', padding: '24px', maxWidth: '640px' }}>
-      <h1 style={{ fontSize: '20px' }}>Plantillas</h1>
-      <form method="post" action="/templates/_action/create" style={{ margin: '16px 0' }}>
-        <input name="name" placeholder="Nombre de la plantilla" required />
-        <button type="submit">Crear</button>
+    <main class="container stack-lg">
+      <h1>Plantillas</h1>
+
+      {templates.length === 0 ? (
+        <p class="muted">Todavía no hay plantillas.</p>
+      ) : (
+        <table>
+          <thead>
+            <tr>
+              <th>Nombre</th>
+              <th>Revisión</th>
+            </tr>
+          </thead>
+          <tbody>
+            {templates.map((template) => (
+              <tr key={template.id}>
+                <td>
+                  <a href={`/templates/${template.id}`}>{template.name}</a>
+                </td>
+                <td>
+                  <span class="badge mono">rev {template.rev}</span>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+
+      <form method="post" action="/templates/_action/create" class="stack-sm">
+        <label for="template-name">Nombre de la plantilla</label>
+        <input id="template-name" name="name" required />
+        <button type="submit">Crear plantilla</button>
       </form>
-      <ul>
-        {templates.map((template) => (
-          <li key={template.id}>
-            <a href={`/templates/${template.id}`}>{template.name}</a>
-            <span style={{ color: '#666', fontSize: '12px' }}> · rev {template.rev}</span>
-          </li>
-        ))}
-      </ul>
     </main>
   )
 }
 
-@uiController({ path: '/templates', app: true })
+@uiController({ path: '/templates', app: true, layout: AppLayout })
 export class TemplateController {
   constructor(
     private readonly templates: TemplateRepository,

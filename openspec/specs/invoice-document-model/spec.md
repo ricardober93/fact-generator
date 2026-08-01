@@ -3,7 +3,9 @@
 ## Purpose
 
 TBD - created by archiving change invoice-template-model. Update Purpose after archive.
+
 ## Requirements
+
 ### Requirement: Estructura del documento
 
 Un documento de factura DEBE (MUST) ser un valor serializable a JSON sin pérdida, compuesto
@@ -219,4 +221,3 @@ primero, y cada problema DEBE indicar la ruta del campo culpable.
 
 - **WHEN** se valida un documento
 - **THEN** el documento de entrada queda sin modificar
-

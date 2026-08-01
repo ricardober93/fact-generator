@@ -12,12 +12,12 @@ const GEOMETRY: Array<{ key: keyof IBlock & string; label: string }> = [
   { key: 'heightMm', label: 'Alto (mm)' },
 ]
 
-function Field({ label, children }: { label: string; children: unknown }): VNode {
+function Field({ id, label, children }: { id: string; label: string; children: unknown }): VNode {
   return (
-    <label style={{ display: 'grid', gap: '2px', fontSize: '12px', minWidth: 0 }}>
-      <span style={{ color: '#555' }}>{label}</span>
+    <div class="stack-sm">
+      <label for={id}>{label}</label>
       {children as VNode}
-    </label>
+    </div>
   )
 }
 
@@ -31,14 +31,14 @@ function GeometryFields({
   block: IBlock
 }): VNode {
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px' }}>
+    <div class="wb-geometry">
       {GEOMETRY.map(({ key, label }) => (
-        <Field key={key} label={label}>
+        <Field key={key} id={`geometry-${key}`} label={label}>
           <input
+            id={`geometry-${key}`}
             type="number"
             step="any"
             data-geometry={key}
-            style={{ width: '100%', minWidth: 0 }}
             value={Number(block[key])}
             onInput={(event) => {
               const parsed = Number((event.currentTarget as HTMLInputElement).value)
@@ -54,7 +54,13 @@ function GeometryFields({
   )
 }
 
-export function Inspector({ store, assets }: { store: IEditorStore; assets: IAssetChoice[] }) {
+export function Inspector({
+  store,
+  assets,
+}: {
+  store: IEditorStore
+  assets: IAssetChoice[]
+}): VNode {
   const band = store.selectedBand.value
   const blockId = store.selectedBlockId.value
   const doc = store.doc.value
@@ -62,8 +68,8 @@ export function Inspector({ store, assets }: { store: IEditorStore; assets: IAss
 
   if (!band || !block) {
     return (
-      <aside style={{ fontSize: '12px', color: '#666' }}>
-        Selecciona un bloque para editar sus propiedades.
+      <aside class="stack">
+        <p class="muted">Selecciona un bloque para editar sus propiedades.</p>
       </aside>
     )
   }
@@ -71,7 +77,9 @@ export function Inspector({ store, assets }: { store: IEditorStore; assets: IAss
   const definition = findBlockDefinition(block.kind)
   if (!definition) {
     return (
-      <aside style={{ fontSize: '12px', color: '#a00' }}>Tipo «{block.kind}» desconocido.</aside>
+      <aside class="stack">
+        <p class="badge badge-danger">Tipo «{block.kind}» desconocido.</p>
+      </aside>
     )
   }
 
@@ -86,27 +94,33 @@ export function Inspector({ store, assets }: { store: IEditorStore; assets: IAss
   const Custom = definition.Inspector
 
   return (
-    <aside style={{ display: 'grid', gap: '10px', minWidth: 0 }}>
-      <h2 style={{ fontSize: '13px', margin: 0 }}>{block.kind}</h2>
-      <GeometryFields store={store} band={band} block={block} />
+    <aside class="stack">
+      <fieldset class="stack-sm">
+        <legend>{block.kind}</legend>
+        <GeometryFields store={store} band={band} block={block} />
+      </fieldset>
 
-      {Custom ? (
-        <Custom block={block} doc={doc} onChange={changeProp} />
-      ) : (
-        Object.entries(definition.schema).map(([propName, propType]) => (
-          <Field key={propName} label={propName}>
-            <PropertyEditor
-              name={propName}
-              type={propType}
-              value={block.props[propName]}
-              doc={doc}
-              assets={assets}
-              onChange={(value) => changeProp(propName, value)}
-              onThemeChange={changeTheme}
-            />
-          </Field>
-        ))
-      )}
+      <fieldset class="stack-sm">
+        <legend>Propiedades</legend>
+        {Custom ? (
+          <Custom block={block} doc={doc} onChange={changeProp} />
+        ) : (
+          Object.entries(definition.schema).map(([propName, propType]) => (
+            <Field key={propName} id={`prop-${propName}`} label={propName}>
+              <PropertyEditor
+                id={`prop-${propName}`}
+                name={propName}
+                type={propType}
+                value={block.props[propName]}
+                doc={doc}
+                assets={assets}
+                onChange={(value) => changeProp(propName, value)}
+                onThemeChange={changeTheme}
+              />
+            </Field>
+          ))
+        )}
+      </fieldset>
     </aside>
   )
 }

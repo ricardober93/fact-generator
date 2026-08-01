@@ -1,8 +1,13 @@
 import type { VNode } from '@wabot-dev/framework/ui'
 import { FORMATS } from '../render/format'
 import type { IDocument, ITextContent, ITextFragment, ITextMark } from '../render/document'
+import { ArrowDownIcon, ArrowUpIcon, CloseIcon } from './icons'
 
-const MARKS: ITextMark[] = ['bold', 'italic', 'underline']
+const MARKS: Array<{ mark: ITextMark; label: string }> = [
+  { mark: 'bold', label: 'Negrita' },
+  { mark: 'italic', label: 'Cursiva' },
+  { mark: 'underline', label: 'Subrayado' },
+]
 
 const DATA_PATHS_LIST = 'editor-data-paths'
 
@@ -33,20 +38,18 @@ function MarkToggles({
   onChange: (fragment: ITextFragment) => void
 }): VNode {
   return (
-    <span style={{ display: 'inline-flex', gap: '2px' }}>
-      {MARKS.map((mark) => (
+    <span class="cluster">
+      {MARKS.map(({ mark, label }) => (
         <button
           key={mark}
           type="button"
+          class="btn btn-ghost btn-sm"
           data-mark={mark}
+          aria-label={label}
           aria-pressed={(fragment.marks ?? []).includes(mark)}
           onClick={() => onChange({ ...fragment, marks: toggledMarks(fragment, mark) })}
-          style={{
-            fontWeight: (fragment.marks ?? []).includes(mark) ? 'bold' : 'normal',
-            width: '24px',
-          }}
         >
-          {mark[0].toUpperCase()}
+          {label[0]}
         </button>
       ))}
     </span>
@@ -64,8 +67,9 @@ function FragmentRow({
     return (
       <input
         type="text"
+        class="wb-fragment-field"
         data-fragment="literal"
-        style={{ flex: '1' }}
+        aria-label="Texto literal"
         value={fragment.text}
         onInput={(event) =>
           onChange({ ...fragment, text: (event.currentTarget as HTMLInputElement).value })
@@ -77,10 +81,11 @@ function FragmentRow({
     <>
       <input
         type="text"
+        class="wb-fragment-field"
         data-fragment="binding"
         list={DATA_PATHS_LIST}
         placeholder="ruta.de.datos"
-        style={{ flex: '1' }}
+        aria-label="Ruta de datos"
         value={fragment.path}
         onInput={(event) =>
           onChange({ ...fragment, path: (event.currentTarget as HTMLInputElement).value })
@@ -88,6 +93,7 @@ function FragmentRow({
       />
       <select
         data-fragment-format="true"
+        aria-label="Formato"
         value={fragment.format ?? ''}
         onChange={(event) => {
           const chosen = (event.currentTarget as HTMLSelectElement).value
@@ -121,7 +127,7 @@ export function TextContentEditor({ content, doc, onChange }: ITextContentEditor
   }
 
   return (
-    <div style={{ display: 'grid', gap: '4px' }}>
+    <div class="stack-sm">
       <datalist id={DATA_PATHS_LIST}>
         {doc.dataSchema.map((entry) => (
           <option key={entry.path} value={entry.path} />
@@ -129,7 +135,7 @@ export function TextContentEditor({ content, doc, onChange }: ITextContentEditor
       </datalist>
 
       {fragments.map((fragment, index) => (
-        <div key={index} style={{ display: 'flex', gap: '2px', alignItems: 'center' }}>
+        <div key={index} class="wb-fragment">
           <FragmentRow
             fragment={fragment}
             onChange={(next) => update(replaceAt(fragments, index, next))}
@@ -138,36 +144,52 @@ export function TextContentEditor({ content, doc, onChange }: ITextContentEditor
             fragment={fragment}
             onChange={(next) => update(replaceAt(fragments, index, next))}
           />
-          <button type="button" data-move="up" onClick={() => move(index, -1)}>
-            ↑
-          </button>
-          <button type="button" data-move="down" onClick={() => move(index, 1)}>
-            ↓
+          <button
+            type="button"
+            class="wb-icon-button"
+            data-move="up"
+            aria-label="Subir fragmento"
+            onClick={() => move(index, -1)}
+          >
+            <ArrowUpIcon />
           </button>
           <button
             type="button"
+            class="wb-icon-button"
+            data-move="down"
+            aria-label="Bajar fragmento"
+            onClick={() => move(index, 1)}
+          >
+            <ArrowDownIcon />
+          </button>
+          <button
+            type="button"
+            class="wb-icon-button"
             data-remove-fragment="true"
+            aria-label="Quitar fragmento"
             onClick={() => update(fragments.filter((_, position) => position !== index))}
           >
-            ×
+            <CloseIcon />
           </button>
         </div>
       ))}
 
-      <div style={{ display: 'flex', gap: '4px' }}>
+      <div class="cluster">
         <button
           type="button"
+          class="btn btn-secondary btn-sm"
           data-add-fragment="literal"
           onClick={() => update([...fragments, { type: 'literal', text: 'Texto' }])}
         >
-          + texto
+          Añadir texto
         </button>
         <button
           type="button"
+          class="btn btn-secondary btn-sm"
           data-add-fragment="binding"
           onClick={() => update([...fragments, { type: 'binding', path: '' }])}
         >
-          + dato
+          Añadir dato
         </button>
       </div>
     </div>

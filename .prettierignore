@@ -2,3 +2,5 @@ package-lock.json
 dist
 .wabot
 src/**/__fixtures__/*.golden.html
+src/design/wabotDesignCss.ts
+src/design/wabot-design.css

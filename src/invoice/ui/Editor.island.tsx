@@ -11,10 +11,26 @@ import { Canvas } from './Canvas'
 import { Inspector } from './Inspector'
 import { Palette } from './Palette'
 import { removeBlock } from './documentEdits'
-import { createEditorStore, type IEditorStore } from './editorStore'
+import { createEditorStore, type IEditorStore, type ISaveState } from './editorStore'
 import type { IAssetChoice } from './propertyEditors'
 
 const SAVE_URL = actionUrl('/templates', 'save')
+
+const BADGE_BY_STATE: Record<ISaveState, string> = {
+  idle: '',
+  saving: 'badge badge-info',
+  saved: 'badge badge-success',
+  conflict: 'badge badge-warning',
+  error: 'badge badge-danger',
+}
+
+const DOT_BY_STATE: Record<ISaveState, string> = {
+  idle: '',
+  saving: 'dot dot-info dot-pulse',
+  saved: 'dot dot-success',
+  conflict: 'dot dot-warning',
+  error: 'dot dot-danger',
+}
 
 export interface IEditorProps {
   id: string
@@ -54,17 +70,12 @@ function useShortcuts(store: IEditorStore): void {
   }, [store])
 }
 
-function StatusLine({ store }: { store: IEditorStore }): VNode {
+function SaveStatus({ store }: { store: IEditorStore }): VNode {
   const status = store.status.value
-  const colors: Record<string, string> = {
-    idle: '#666',
-    saving: '#666',
-    saved: '#0a7a2f',
-    conflict: '#a05000',
-    error: '#a00000',
-  }
+  const dot = DOT_BY_STATE[status.state]
   return (
-    <span data-save-state={status.state} style={{ fontSize: '12px', color: colors[status.state] }}>
+    <span class={BADGE_BY_STATE[status.state]} data-save-state={status.state}>
+      {dot ? <span class={dot} /> : null}
       {status.message}
     </span>
   )
@@ -72,26 +83,34 @@ function StatusLine({ store }: { store: IEditorStore }): VNode {
 
 function Toolbar({ store, onSave }: { store: IEditorStore; onSave: () => void }): VNode {
   return (
-    <header
-      style={{
-        display: 'flex',
-        gap: '8px',
-        alignItems: 'center',
-        padding: '8px 12px',
-        borderBottom: '1px solid #ddd',
-      }}
-    >
-      <button type="button" data-action="undo" onClick={() => store.undo()}>
+    <header class="wb-toolbar">
+      <a class="btn btn-ghost btn-sm" href="/templates">
+        Plantillas
+      </a>
+      <button
+        type="button"
+        class="btn btn-secondary btn-sm"
+        data-action="undo"
+        onClick={() => store.undo()}
+      >
         Deshacer
       </button>
-      <button type="button" data-action="redo" onClick={() => store.redo()}>
+      <button
+        type="button"
+        class="btn btn-secondary btn-sm"
+        data-action="redo"
+        onClick={() => store.redo()}
+      >
         Rehacer
       </button>
-      <button type="button" data-action="save" onClick={onSave}>
+      <span class="wb-toolbar-gap" />
+      <span class="badge" data-rev={store.rev.value}>
+        rev {store.rev.value}
+      </span>
+      <SaveStatus store={store} />
+      <button type="button" class="btn btn-sm" data-action="save" onClick={onSave}>
         Guardar
       </button>
-      <span style={{ fontSize: '12px', color: '#666' }}>rev {store.rev.value}</span>
-      <StatusLine store={store} />
     </header>
   )
 }
@@ -104,7 +123,7 @@ function Editor(props: IEditorProps): VNode {
   useShortcuts(store)
 
   async function save(): Promise<void> {
-    store.status.value = { state: 'saving', message: 'Guardando…' }
+    store.status.value = { state: 'saving', message: 'Guardando' }
     try {
       const result = await callAction<{ rev: number }>(SAVE_URL, {
         id: store.templateId,
@@ -118,29 +137,24 @@ function Editor(props: IEditorProps): VNode {
       const conflict = /409|revisi/i.test(message)
       store.status.value = {
         state: conflict ? 'conflict' : 'error',
-        message: conflict
-          ? 'Otro guardado se adelantó. Tus cambios siguen aquí; recarga para ver el suyo.'
-          : message,
+        message: conflict ? 'Otro guardado se adelantó. Tus cambios siguen aquí.' : message,
       }
     }
   }
 
   return (
-    <div style={{ display: 'grid', gridTemplateRows: 'auto 1fr', height: '100vh' }}>
+    <div class="wb-shell">
       <Toolbar store={store} onSave={save} />
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: '200px 1fr 260px',
-          gap: '12px',
-          padding: '12px',
-          overflow: 'auto',
-          background: '#f4f4f5',
-        }}
-      >
-        <Palette store={store} />
-        <Canvas store={store} assets={props.assetUris} />
-        <Inspector store={store} assets={props.assets} />
+      <div class="wb-body">
+        <div class="wb-panel">
+          <Palette store={store} />
+        </div>
+        <div class="wb-stage">
+          <Canvas store={store} assets={props.assetUris} />
+        </div>
+        <div class="wb-panel">
+          <Inspector store={store} assets={props.assets} />
+        </div>
       </div>
     </div>
   )

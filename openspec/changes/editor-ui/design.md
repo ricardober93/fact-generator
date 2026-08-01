@@ -40,7 +40,7 @@ Del sistema de diseño, comprobado sobre el archivo descargado (26 kB):
 `npm run design:sync` descarga `colors_and_type.css` a `src/design/wabot-design.css` y genera
 `src/design/wabotDesignCss.ts`, que exporta el CSS como una cadena. El layout importa esa cadena.
 
-*Por qué no `fs.readFileSync(new URL('./design/wabot-design.css', import.meta.url))`,* que es lo
+_Por qué no `fs.readFileSync(new URL('./design/wabot-design.css', import.meta.url))`,_ que es lo
 que sugiere el sistema de diseño: en desarrollo resuelve contra `src/`, pero el modo empaquetado
 arranca desde `dist/` y nada garantiza que el `.css` se haya copiado. Un `import` de TypeScript no
 tiene ese problema en ninguno de los dos modos. El coste es un archivo generado, que es el mismo
@@ -54,16 +54,16 @@ a una actualización.
 
 Se sobreescribe `--font-sans` con la pila del sistema y **no** se sirven los `woff2` de Geist.
 
-*Por qué:* el `@font-face` del sistema de diseño apunta a rutas relativas. Al inyectar el CSS en
+_Por qué:_ el `@font-face` del sistema de diseño apunta a rutas relativas. Al inyectar el CSS en
 un `<style>`, esas rutas se resuelven contra la URL de la página, no contra la del archivo, así
 que darían 404. Servirlas de verdad exige una ruta de assets estáticos que este proyecto no tiene:
 `express.static('/_wabot')` solo se monta en modo empaquetado, no en `npm run dev`.
 
 Las alternativas y su precio, para que la decisión se pueda revisar con datos:
 
-- *Empotrar las fuentes como `data:` URIs* en el CSS generado: funciona en los dos modos y sin red,
+- _Empotrar las fuentes como `data:` URIs_ en el CSS generado: funciona en los dos modos y sin red,
   pero mete ~100 kB de base64 en cada carga de página y complica el script de sync.
-- *Añadir una ruta que sirva los binarios*: es una superficie nueva por un detalle tipográfico.
+- _Añadir una ruta que sirva los binarios_: es una superficie nueva por un detalle tipográfico.
 
 La pila del sistema cuesta cero y en macOS es SF Pro, que es exactamente el registro que busca
 Geist. **Es una diferencia visible respecto al sistema de diseño y queda anotada como tal.**
@@ -73,7 +73,7 @@ Geist. **Es una diferencia visible respecto al sistema de diseño y queda anotad
 El documento se pinta dentro de un contenedor marcado, y una hoja de overrides neutraliza dentro
 de él lo que el sistema de diseño impone a elementos desnudos.
 
-*Por qué hace falta y por qué casi no hace falta:* `render/` pinta **todo en línea** —es lo que
+_Por qué hace falta y por qué casi no hace falta:_ `render/` pinta **todo en línea** —es lo que
 hace al embed autocontenido—, y un estilo en línea gana a una regla de hoja. Así que hoy el riesgo
 real es pequeño: `table { width: 100% }` choca con un `width: 100%` en línea, `img { display:
 block }` con un `display: block` en línea. Empatan y gana el documento.
@@ -86,7 +86,7 @@ Por eso el requisito no es "poner un reset" sino "el documento se ve igual en la
 y se verifica **comparando los estilos computados** de los mismos nodos en el editor y en el embed.
 Un reset preventivo enorme sería adivinar; la comparación detecta lo que de verdad se escapa.
 
-*Alternativa descartada:* pintar el lienzo dentro de un `<iframe>`, que aísla de forma total y
+_Alternativa descartada:_ pintar el lienzo dentro de un `<iframe>`, que aísla de forma total y
 gratuita. Rompe el hit-testing del arrastre —habría que mapear coordenadas a través de la frontera
 y reenviar eventos— y obligaría a que el editor consumiera la ruta del embed, que exige un handoff
 con datos. Mucho aparato para un problema que una comparación de estilos deja cerrado.
@@ -106,7 +106,7 @@ El resto —color, tipografía, espaciado, radios— sale de tokens.
 El lienzo queda sobre un fondo hundido (`--c-bg-sunken`) y el papel es blanco, sin sombra y sin
 borde. El contraste de fondo hace de separación, que es la regla del sistema.
 
-*Por qué el papel es blanco fijo y no `--c-bg-raised`:* el papel representa una hoja impresa. Si
+_Por qué el papel es blanco fijo y no `--c-bg-raised`:_ el papel representa una hoja impresa. Si
 siguiera el tema de la aplicación, en tema oscuro la factura se pintaría sobre carbón y el preview
 mentiría. El papel se queda fuera del tema, igual que se queda fuera del sistema de diseño.
 
@@ -115,7 +115,7 @@ mentiría. El papel se queda fuera del tema, igual que se queda fuera del sistem
 Tres iconos de Lucide copiados como SVG en línea en un único archivo: `arrow-up`, `arrow-down`,
 `x`. 24×24, trazo 2, extremos redondeados. Cada botón de icono lleva su nombre accesible.
 
-*Por qué copiados y no `lucide-preact`:* son tres iconos. Una dependencia npm para tres rutas SVG
+_Por qué copiados y no `lucide-preact`:_ son tres iconos. Una dependencia npm para tres rutas SVG
 es exactamente lo que este proyecto no construye. **Es una sustitución respecto a los glifos
 actuales y se anota como tal.**
 
@@ -124,7 +124,7 @@ actuales y se anota como tal.**
 La rejilla del editor —tres columnas, su colapso responsive y el scroll de cada panel— va en un
 módulo CSS. Todo lo demás usa las clases globales del sistema.
 
-*Por qué no todo en módulos CSS:* reenvolver `.btn` en una clase propia por cada botón es
+_Por qué no todo en módulos CSS:_ reenvolver `.btn` en una clase propia por cada botón es
 recrear el sistema de diseño con otro nombre. Las clases globales están para usarse.
 
 ### 8. El marcado de prueba no se toca
