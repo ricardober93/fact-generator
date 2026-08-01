@@ -1,0 +1,4 @@
+package-lock.json
+dist
+.wabot
+src/**/__fixtures__/*.golden.html

@@ -6,8 +6,12 @@
 repositorios, sin red, sin `Date.now()` y sin leer `window` ni `process`. DEBE producir el
 mismo marcado con las mismas entradas, tanto en Node como en el navegador.
 
-El módulo NO DEBE (MUST NOT) importar `@wabot-dev/framework`; solo
+Los archivos de `render/` NO DEBEN (MUST NOT) importar `@wabot-dev/framework`; solo
 `@wabot-dev/framework/ui`, que es la única entrada del paquete con condición `browser`.
+
+Quedan fuera de la regla los `*.unit.test.ts` y los de `__fixtures__/`: son código de test
+que ningún island alcanza por sus imports, así que nunca entra en un bundle de navegador.
+La regla existe para proteger ese bundle, no por pureza.
 
 #### Scenario: Determinismo
 
@@ -21,7 +25,8 @@ El módulo NO DEBE (MUST NOT) importar `@wabot-dev/framework`; solo
 
 #### Scenario: La frontera del bundle se respeta
 
-- **WHEN** se inspeccionan los imports de todos los archivos bajo `render/`
+- **WHEN** se inspeccionan los imports de los archivos bajo `render/` que no son tests ni
+  fixtures
 - **THEN** ninguno importa `@wabot-dev/framework` sin el sufijo `/ui`
 
 ### Requirement: Cardinalidad de las bandas en el marcado

@@ -35,10 +35,10 @@ documento, la impresión queda resuelta sin una línea de cálculo propio.
 
 Alternativas descartadas:
 
-| Opción | Por qué no |
-|---|---|
-| paged.js | ~200 kb y un segundo motor de layout corriendo junto al del navegador. Solo aporta ver las hojas en pantalla. |
-| Calcular los saltos nosotros | Es escribir un motor de paginación propio, justo lo que el modelo de bandas existe para evitar. |
+| Opción                       | Por qué no                                                                                                    |
+| ---------------------------- | ------------------------------------------------------------------------------------------------------------- |
+| paged.js                     | ~200 kb y un segundo motor de layout corriendo junto al del navegador. Solo aporta ver las hojas en pantalla. |
+| Calcular los saltos nosotros | Es escribir un motor de paginación propio, justo lo que el modelo de bandas existe para evitar.               |
 
 Lo que se acepta: en pantalla el documento es papel continuo y el corte real solo se ve en
 Ctrl+P. Ver riesgos.

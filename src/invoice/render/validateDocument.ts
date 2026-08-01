@@ -1,11 +1,13 @@
 import {
   BAND_NAMES,
+  bindingPaths,
   isTokenReference,
   tokenName,
   usableWidthMm,
   type IBand,
   type IBandName,
   type IBlock,
+  type IDataType,
   type IDocument,
   type IPage,
   type ITheme,
@@ -266,6 +268,40 @@ function validateBands(bands: unknown, page: IPage, theme: ITheme, issues: IDocu
   }
 }
 
+const DATA_TYPES: IDataType[] = ['string', 'number', 'boolean', 'date']
+
+function validateDataSchema(dataSchema: unknown, issues: IDocumentIssue[]): void {
+  if (!Array.isArray(dataSchema)) {
+    issues.push({ path: 'dataSchema', message: 'dataSchema must be an array' })
+    return
+  }
+  dataSchema.forEach((entry, index) => {
+    const path = `dataSchema[${index}]`
+    if (!isPlainObject(entry)) {
+      issues.push({ path, message: 'data path declaration must be an object' })
+      return
+    }
+    if (typeof entry.path !== 'string' || entry.path.length === 0) {
+      issues.push({ path: `${path}.path`, message: 'must be a non-empty string' })
+    }
+    if (!DATA_TYPES.includes(entry.type as IDataType)) {
+      issues.push({ path: `${path}.type`, message: `must be one of: ${DATA_TYPES.join(', ')}` })
+    }
+    if (typeof entry.required !== 'boolean') {
+      issues.push({ path: `${path}.required`, message: 'must be a boolean' })
+    }
+  })
+}
+
+function validateDeclaredBindings(doc: IDocument, issues: IDocumentIssue[]): void {
+  const declared = new Set(doc.dataSchema.map((entry) => entry.path))
+  for (const path of bindingPaths(doc)) {
+    if (!declared.has(path)) {
+      issues.push({ path: 'dataSchema', message: `binding "${path}" is not declared` })
+    }
+  }
+}
+
 export function validateDocument(doc: unknown): IDocumentIssue[] {
   const issues: IDocumentIssue[] = []
   if (!isPlainObject(doc)) {
@@ -274,11 +310,21 @@ export function validateDocument(doc: unknown): IDocumentIssue[] {
   if (doc.version !== 1) {
     issues.push({ path: 'version', message: 'must be 1' })
   }
+  if (typeof doc.locale !== 'string' || doc.locale.length === 0) {
+    issues.push({ path: 'locale', message: 'must be a non-empty string' })
+  }
+  if (typeof doc.currency !== 'string' || doc.currency.length === 0) {
+    issues.push({ path: 'currency', message: 'must be a non-empty string' })
+  }
   validatePage(doc.page, issues)
   validateTheme(doc.theme, issues)
   const theme = (isPlainObject(doc.theme) ? doc.theme : {}) as ITheme
   validateParams(doc.params, theme, issues)
+  validateDataSchema(doc.dataSchema, issues)
   validateBands(doc.bands, (doc.page ?? {}) as IPage, theme, issues)
+  if (Array.isArray(doc.dataSchema) && isPlainObject(doc.bands)) {
+    validateDeclaredBindings(doc as unknown as IDocument, issues)
+  }
   return issues
 }
 

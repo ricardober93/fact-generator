@@ -1,4 +1,16 @@
-import type { IBlock } from '../document'
+import type { VNode } from '@wabot-dev/framework/ui'
+import type { IBlock, ITheme } from '../document'
+import type { IResolved } from '../bind'
+import type { IFormatOptions } from '../format'
+
+export interface IRenderContext {
+  theme: ITheme
+  format: IFormatOptions
+  resolve: (path: string) => IResolved
+  asset: (id: string) => string | null
+}
+
+export type IBlockRender = (block: IBlock, ctx: IRenderContext) => VNode | null
 
 export type IPropType =
   | 'string'
@@ -15,7 +27,7 @@ export interface IBlockDefinition {
   kind: string
   schema: IBlockSchema
   defaults: Omit<IBlock, 'id' | 'kind'>
-  render?: unknown
+  render: IBlockRender
   Inspector?: unknown
 }
 

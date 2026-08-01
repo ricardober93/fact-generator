@@ -20,6 +20,17 @@ function binding(path: string, format?: string): ITextFragment {
 export function invoiceDocumentFixture(): IDocument {
   const doc = emptyDocument()
 
+  doc.dataSchema = [
+    { path: 'emisor.nombre', type: 'string', required: true },
+    { path: 'emisor.pie', type: 'string', required: false },
+    { path: 'cliente.nombre', type: 'string', required: true },
+    { path: 'factura.numero', type: 'string', required: true },
+    { path: 'factura.total', type: 'number', required: true },
+    { path: 'item.descripcion', type: 'string', required: true },
+    { path: 'item.cantidad', type: 'number', required: true },
+    { path: 'item.total', type: 'number', required: true },
+  ]
+
   doc.params = [
     {
       name: 'color',
@@ -34,7 +45,16 @@ export function invoiceDocumentFixture(): IDocument {
       defaultValue: '10pt',
       allowedValues: ['9pt', '10pt', '12pt'],
     },
+    {
+      name: 'moneda',
+      type: 'enum',
+      token: 'currency',
+      defaultValue: 'EUR',
+      allowedValues: ['EUR', 'USD', 'COP'],
+    },
   ]
+
+  doc.theme.currency = 'EUR'
 
   doc.bands.header.blocks = [
     applyDefaults('image', { id: 'logo', xMm: 0, yMm: 0, widthMm: 40, heightMm: 20 }),

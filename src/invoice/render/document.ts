@@ -65,11 +65,24 @@ export interface IBand {
 
 export type IBands = Record<IBandName, IBand>
 
+export type IDataType = 'string' | 'number' | 'boolean' | 'date'
+
+export interface IDataPath {
+  path: string
+  type: IDataType
+  required: boolean
+}
+
+export const DETAIL_ITEM_ROOT = 'item'
+
 export interface IDocument {
   version: 1
   page: IPage
   theme: ITheme
   params: IParamDeclaration[]
+  dataSchema: IDataPath[]
+  locale: string
+  currency: string
   bands: IBands
 }
 
@@ -127,12 +140,33 @@ function emptyBands(): IBands {
   return bands
 }
 
+export const DEFAULT_LOCALE = 'es-ES'
+
+export const DEFAULT_CURRENCY = 'EUR'
+
 export function emptyDocument(page: IPage = A4_PORTRAIT): IDocument {
   return {
     version: 1,
     page: { ...page },
     theme: { ...DEFAULT_THEME },
     params: [],
+    dataSchema: [],
+    locale: DEFAULT_LOCALE,
+    currency: DEFAULT_CURRENCY,
     bands: emptyBands(),
   }
+}
+
+export function bindingPaths(doc: IDocument): string[] {
+  const paths = new Set<string>()
+  for (const band of Object.values(doc.bands)) {
+    for (const block of band.blocks) {
+      const content = block.props.content
+      if (typeof content !== 'object' || !('fragments' in content)) continue
+      for (const fragment of content.fragments) {
+        if (fragment.type === 'binding') paths.add(fragment.path)
+      }
+    }
+  }
+  return [...paths]
 }

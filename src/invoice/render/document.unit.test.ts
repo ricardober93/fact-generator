@@ -191,3 +191,52 @@ test('validation is deterministic and does not mutate its input', () => {
   assert.deepEqual(first, second)
   assert.equal(JSON.stringify(doc), snapshot)
 })
+
+test('the empty document declares an empty data contract and default formatting', () => {
+  const doc = emptyDocument()
+
+  assert.deepEqual(doc.dataSchema, [])
+  assert.equal(doc.locale, 'es-ES')
+  assert.equal(doc.currency, 'EUR')
+  assert.deepEqual(validateDocument(doc), [])
+})
+
+test('a document without a data contract is invalid', () => {
+  const doc = emptyDocument() as any
+  delete doc.dataSchema
+
+  const issues = validateDocument(doc)
+
+  assert.equal(issues.length, 1)
+  assert.equal(issues[0].path, 'dataSchema')
+})
+
+test('a binding path that is not declared in the data contract is reported', () => {
+  const doc = emptyDocument()
+  doc.bands.header.blocks = [
+    applyDefaults('text', {
+      widthMm: 40,
+      heightMm: 6,
+      props: { content: { fragments: [{ type: 'binding', path: 'cliente.nombre' }] } },
+    }),
+  ]
+
+  const issues = validateDocument(doc)
+
+  assert.equal(issues.length, 1)
+  assert.match(issues[0].message, /binding "cliente\.nombre" is not declared/)
+})
+
+test('a declared binding path passes', () => {
+  const doc = emptyDocument()
+  doc.dataSchema = [{ path: 'cliente.nombre', type: 'string', required: true }]
+  doc.bands.header.blocks = [
+    applyDefaults('text', {
+      widthMm: 40,
+      heightMm: 6,
+      props: { content: { fragments: [{ type: 'binding', path: 'cliente.nombre' }] } },
+    }),
+  ]
+
+  assert.deepEqual(validateDocument(doc), [])
+})

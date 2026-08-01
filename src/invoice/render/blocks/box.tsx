@@ -1,3 +1,4 @@
+import { tokenVar } from '../printCss'
 import { defineBlock } from './defineBlock'
 
 export default defineBlock({
@@ -19,5 +20,18 @@ export default defineBlock({
       borderWidthMm: 0.2,
       radiusMm: 0,
     },
+  },
+  render(block) {
+    return (
+      <div
+        style={{
+          width: '100%',
+          height: '100%',
+          background: tokenVar(block.props.fill),
+          border: `${block.props.borderWidthMm}mm solid ${tokenVar(block.props.border)}`,
+          borderRadius: `${block.props.radiusMm}mm`,
+        }}
+      />
+    )
   },
 })

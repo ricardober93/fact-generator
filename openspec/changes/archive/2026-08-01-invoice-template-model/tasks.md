@@ -14,7 +14,7 @@
       la resolución de `kind` → definición. El campo `render` puede quedar como stub: este
       cambio no renderiza.
 - [x] 2.2 Definir el descriptor de schema (`'string' | 'number' | 'boolean' | 'token' |
-    'enum:a,b,c' | 'asset'`) y `applyDefaults(kind, partial)`.
+'enum:a,b,c' | 'asset'`) y `applyDefaults(kind, partial)`.
 - [x] 2.3 Crear los cuatro tipos: `text.ts`, `image.ts`, `box.ts`, `line.ts`, cada uno con
       su schema y sus defaults en mm.
 - [x] 2.4 `registry.unit.test.ts`: el registro devuelve los cuatro tipos; un `kind`

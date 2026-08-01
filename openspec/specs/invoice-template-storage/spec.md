@@ -1,8 +1,11 @@
 # invoice-template-storage Specification
 
 ## Purpose
+
 TBD - created by archiving change invoice-template-model. Update Purpose after archive.
+
 ## Requirements
+
 ### Requirement: Persistencia de la plantilla
 
 Una plantilla DEBE (MUST) guardarse con su nombre y su documento completo. Al recuperarla, el
@@ -134,4 +137,3 @@ en el `src` de un `<img>`, no.
 - **WHEN** se pide la representación de un asset SVG que contiene una etiqueta `script`
 - **THEN** devuelve una data URI, apta solo para el `src` de un `<img>`, y nunca el markup
   del SVG
-
