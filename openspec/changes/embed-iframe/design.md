@@ -30,12 +30,12 @@ El padre entrega los datos por una acción de servidor y recibe un token; el ifr
 con el token. La alternativa era que el iframe cargara vacío y el padre le mandara los datos
 por `postMessage`.
 
-| | Entrega previa | `postMessage` |
-|---|---|---|
-| SSR | Completo | Esqueleto y luego repintado en cliente |
-| Sin JavaScript | Funciona | Página vacía |
-| Imprimir | Inmediato | Hay que esperar a los datos |
-| Estado en servidor | Entidad con caducidad + limpieza | Ninguno |
+|                    | Entrega previa                   | `postMessage`                          |
+| ------------------ | -------------------------------- | -------------------------------------- |
+| SSR                | Completo                         | Esqueleto y luego repintado en cliente |
+| Sin JavaScript     | Funciona                         | Página vacía                           |
+| Imprimir           | Inmediato                        | Hay que esperar a los datos            |
+| Estado en servidor | Entidad con caducidad + limpieza | Ninguno                                |
 
 Se elige la entrega previa porque el embed es un documento para imprimir, y un documento que
 necesita JavaScript para existir es un documento que a veces no existe. El coste —una entidad

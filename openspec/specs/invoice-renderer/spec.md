@@ -1,8 +1,11 @@
 # invoice-renderer Specification
 
 ## Purpose
+
 TBD - created by archiving change invoice-renderer. Update Purpose after archive.
+
 ## Requirements
+
 ### Requirement: El render es una función pura e isomorfa
 
 `render(doc, data, params, assets)` DEBE (MUST) ser una función pura: sin IO, sin acceso a
@@ -162,4 +165,3 @@ aparecer como caracteres visibles y nunca interpretarse como marcado.
 
 - **WHEN** un fragmento declara la marca `bold`
 - **THEN** se emite con el peso correspondiente, sin concatenar HTML a mano
-

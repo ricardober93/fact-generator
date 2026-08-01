@@ -1,8 +1,11 @@
 # invoice-data-binding Specification
 
 ## Purpose
+
 TBD - created by archiving change invoice-renderer. Update Purpose after archive.
+
 ## Requirements
+
 ### Requirement: El documento declara el contrato de sus datos
 
 El documento DEBE (MUST) declarar un `dataSchema` que enumere las rutas que consume,
@@ -130,4 +133,3 @@ preview dejaría de coincidir con el render.
 
 - **WHEN** el embed pasa un locale que el documento no declara como parámetro
 - **THEN** se ignora y se usa el locale del documento
-
