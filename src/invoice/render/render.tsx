@@ -58,9 +58,9 @@ export function render(input: IRenderInput): VNode {
       }}
     >
       <style>{pageCss(doc.page)}</style>
-      {renderBand(doc.bands.header, ctx)}
+      {renderBand(doc.bands.header, 'header', ctx)}
       {renderDetailTable(doc, items, (item) => contextOf(input, item))}
-      {renderBand(doc.bands.summary, ctx)}
+      {renderBand(doc.bands.summary, 'summary', ctx)}
       {renderPageFooter(doc.bands.pageFooter, ctx)}
     </div>
   )

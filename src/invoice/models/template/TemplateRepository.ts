@@ -27,6 +27,8 @@ export class TemplateRepository extends CrudRepository<Template> {
 
   @query() declare findOneByName: (name: string) => Promise<Template | null>
 
+  declare findAll: () => Promise<Template[]>
+
   async createTemplate(name: string, doc: IDocument): Promise<Template> {
     if (!name) {
       throw new CustomError({ message: 'Template name is required', httpCode: 400 })

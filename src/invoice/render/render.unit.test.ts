@@ -68,12 +68,37 @@ test('an empty item collection still renders', async () => {
   assert.ok(html.includes('Acme S.L.'))
 })
 
-test('the page footer is emitted once and fixed', async () => {
+test('the page footer is emitted once and in flow on screen', async () => {
   const html = await renderToHtml(render(fullInput()))
 
-  const fixed = html.match(/position:\s*fixed/g) ?? []
-  assert.equal(fixed.length, 1)
+  const footers = html.match(/class="wb-page-footer"/g) ?? []
+  assert.equal(footers.length, 1)
   assert.ok(html.includes('Gracias por su confianza'))
+
+  const body = html.slice(html.indexOf('</style>'))
+  assert.doesNotMatch(body, /position:\s*fixed/)
+})
+
+test('printing fixes the footer to the page, across the useful column', async () => {
+  const html = await renderToHtml(render(fullInput()))
+
+  const style = html.slice(html.indexOf('<style>'), html.indexOf('</style>'))
+  assert.match(style, /@media print \{ \.wb-page-footer \{ position: fixed; bottom: 0;/)
+  assert.match(style, /width: 180mm;/)
+  assert.doesNotMatch(style, /width: 210mm/)
+})
+
+test('each band and each block names itself in the markup', async () => {
+  const html = await renderToHtml(render(fullInput()))
+
+  for (const band of ['header', 'detailHeader', 'detail', 'summary', 'pageFooter']) {
+    assert.ok(html.includes(`data-band="${band}"`), `${band} is missing`)
+  }
+
+  const doc = invoiceDocumentFixture()
+  for (const block of doc.bands.header.blocks) {
+    assert.ok(html.includes(`data-block="${block.id}"`), `${block.id} is missing`)
+  }
 })
 
 test('the theme travels as custom properties on the root', async () => {

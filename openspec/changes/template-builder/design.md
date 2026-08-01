@@ -39,15 +39,15 @@ Estado de partida, verificado en el código:
 
 `Editor.island.tsx` es el único `island()`. Paleta, lienzo e inspector son componentes suyos.
 
-*Por qué:* dos razones independientes, ambas verificadas en el cambio `embed-iframe`. La
+_Por qué:_ dos razones independientes, ambas verificadas en el cambio `embed-iframe`. La
 hidratación repinta el island **solo con sus props serializadas** y descarta `children`, así que
 un island no puede envolver contenido servidor que necesite conservar. Y dos islands hermanos no
 comparten estado: el documento en edición es un único valor que los tres leen y dos escriben.
 
-*Alternativa descartada:* un island por panel más una señal en módulo compartido. El bundler da
+_Alternativa descartada:_ un island por panel más una señal en módulo compartido. El bundler da
 a cada island su propio grafo; compartir un módulo con estado entre bundles no está garantizado.
 
-*Props del island:* `{ id, doc, rev }` — JSON serializable, que es lo que exige la hidratación.
+_Props del island:_ `{ id, doc, rev }` — JSON serializable, que es lo que exige la hidratación.
 
 ### 2. El lienzo llama a `render()`; el marcado dice a qué banda y bloque pertenece cada cosa
 
@@ -58,19 +58,19 @@ rectángulo real de la banda; se obtiene con `getBoundingClientRect()` sobre el 
 Para llegar a ese nodo, `renderBand` emite `data-band="<nombre>"` y `renderBlock`
 `data-block="<id>"`. Dos atributos.
 
-*Por qué:* el editor lee la geometría **medida** del documento que el navegador acaba de
+_Por qué:_ el editor lee la geometría **medida** del documento que el navegador acaba de
 maquetar, en vez de recalcularla. Las alternativas eran peores:
 
-- *Reensamblar las bandas en el editor* llamando a `renderBand` una a una: duplica el montaje de
+- _Reensamblar las bandas en el editor_ llamando a `renderBand` una a una: duplica el montaje de
   `render()` y es exactamente la divergencia que la arquitectura prohíbe.
-- *Calcular el desplazamiento de cada banda sumando `heightMm`*: funciona hoy y se rompe en
+- _Calcular el desplazamiento de cada banda sumando `heightMm`_: funciona hoy y se rompe en
   silencio el día que la tabla de detalle gane un borde o un padding.
 
 ### 3. La escala px↔mm se mide, no se asume
 
 `pxPerMm = bandaRect.width / usableWidthMm(doc.page)`, recalculado con `ResizeObserver`.
 
-*Por qué:* CSS define `1mm = 96/25.4 px`, pero esa constante deja de valer en cuanto hay zoom de
+_Por qué:_ CSS define `1mm = 96/25.4 px`, pero esa constante deja de valer en cuanto hay zoom de
 navegador o un `transform: scale` de zoom del editor. Medir es una división y sobrevive a ambos.
 
 ### 4. El documento se escribe al soltar, no al mover
@@ -78,7 +78,7 @@ navegador o un `transform: scale` de zoom del editor. Medir es una división y s
 Durante el arrastre solo cambia una señal con el rectángulo provisional del bloque, que mueve el
 overlay de selección. El documento —y por tanto `render()`— se actualiza una vez, en `pointerup`.
 
-*Por qué:* `render()` repinta el documento entero. Hacerlo por cada `pointermove` es repintar N
+_Por qué:_ `render()` repinta el documento entero. Hacerlo por cada `pointermove` es repintar N
 bloques a 60 Hz para mover uno. Además mantiene la pila de deshacer en una entrada por gesto en
 vez de cientos.
 
@@ -92,7 +92,7 @@ en el lienzo mientras dura.
 línea específica de bloque. `IBlockDefinition.Inspector` se tipa y queda como escape para la
 propiedad que no se deje editar por su tipo; ninguna de las actuales lo necesita.
 
-*Por qué:* cuatro inspectores serían cuatro formularios que repiten el mismo `<input>` por
+_Por qué:_ cuatro inspectores serían cuatro formularios que repiten el mismo `<input>` por
 propiedad, y un tipo de bloque nuevo obligaría a escribir el quinto. Con el schema, un tipo nuevo
 tiene panel de propiedades por el hecho de declarar su schema — que es lo que la arquitectura
 promete del registro de bloques.
@@ -107,12 +107,12 @@ El editor de contenido de texto edita `ITextContent.fragments`: filas de literal
 ruta de un binding se escribe con autocompletado de las rutas que ya hay en `doc.dataSchema`, y
 una ruta nueva se añade al `dataSchema` como `{ type: 'string', required: false }`.
 
-*Por qué:* sin esto el editor solo podría enlazar contra un `dataSchema` escrito a mano fuera del
+_Por qué:_ sin esto el editor solo podría enlazar contra un `dataSchema` escrito a mano fuera del
 editor, que es justo el problema que este cambio viene a quitar. `required: false` es el valor
 seguro: una ruta recién inventada no puede tumbar el render de un embed existente con
 `MissingDataError`.
 
-*Alternativa aplazada:* un panel completo de `dataSchema` y `params` con tipo y obligatoriedad.
+_Alternativa aplazada:_ un panel completo de `dataSchema` y `params` con tipo y obligatoriedad.
 Ver Open Questions.
 
 ### 7. Datos de muestra derivados del schema
@@ -120,7 +120,7 @@ Ver Open Questions.
 `sampleDataFor(doc)` produce un valor por cada `IDataPath` según su tipo, y un item de detalle.
 Vive en `render/` porque el island la necesita en el navegador; es pura y se prueba sola.
 
-*Por qué un solo item de detalle:* el lienzo edita la banda `detail` como plantilla de fila, no
+_Por qué un solo item de detalle:_ el lienzo edita la banda `detail` como plantilla de fila, no
 como lista. Con un item hay exactamente un nodo `data-band="detail"` y la selección no es
 ambigua.
 
@@ -131,13 +131,13 @@ en pantalla el pie queda en flujo al final del documento; dentro de `@media prin
 `position: fixed; bottom: 0` con el ancho de la columna útil, de modo que `left` resuelve a su
 posición estática y queda alineado con el resto del documento.
 
-*Por qué es requisito previo y no un extra:* un descendiente `position: fixed` se posiciona
+_Por qué es requisito previo y no un extra:_ un descendiente `position: fixed` se posiciona
 respecto al viewport, así que dentro del lienzo el pie se despegaría del papel y se quedaría
 pegado a la ventana del editor. De paso corrige la desalineación detectada al validar
 `embed-iframe` en navegador (pie a `left: 0` sobre el ancho del papel), que es la tarea 8.5 que
 `invoice-renderer` dejó pendiente.
 
-*Alternativa descartada:* dar al lienzo un `transform: translateZ(0)` para que se convierta en
+_Alternativa descartada:_ dar al lienzo un `transform: translateZ(0)` para que se convierta en
 bloque contenedor de los `fixed` descendientes. Funciona, cabe en una línea, y es exactamente el
 truco que nadie entiende a las 3 de la mañana. Además no corrige la desalineación.
 
@@ -156,7 +156,7 @@ optimista genera conflictos contra uno mismo.
 Pila acotada de instantáneas del documento (estructura JSON completa), una por gesto commitado,
 con `Ctrl/Cmd+Z` y `Ctrl/Cmd+Shift+Z`.
 
-*Por qué instantáneas y no comandos invertibles:* el documento es un valor plano y pequeño;
+_Por qué instantáneas y no comandos invertibles:_ el documento es un valor plano y pequeño;
 clonarlo cuesta menos que mantener un comando inverso por cada tipo de edición.
 
 ### 11. Sin dependencias npm nuevas

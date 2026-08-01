@@ -1,8 +1,11 @@
 # invoice-handoff Specification
 
 ## Purpose
+
 TBD - created by archiving change embed-iframe. Update Purpose after archive.
+
 ## Requirements
+
 ### Requirement: Los datos se entregan antes de abrir el iframe
 
 El servidor del producto padre DEBE (MUST) poder entregar los datos de una factura y recibir
@@ -90,4 +93,3 @@ Sin ella la tabla crece sin límite guardando datos de clientes que ya nadie nec
 
 - **WHEN** se ejecuta la limpieza con dos handoffs caducados y uno vigente
 - **THEN** los dos caducados desaparecen y el vigente permanece
-

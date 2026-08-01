@@ -1,8 +1,11 @@
 # invoice-embed Specification
 
 ## Purpose
+
 TBD - created by archiving change embed-iframe. Update Purpose after archive.
+
 ## Requirements
+
 ### Requirement: El embed sirve el documento renderizado en el servidor
 
 `GET /embed/:token` DEBE (MUST) cargar el handoff y su plantilla, resolver los assets, llamar
@@ -125,4 +128,3 @@ la única alternativa es recortar la factura o dejar un hueco fijo.
 
 - **WHEN** el JavaScript está deshabilitado
 - **THEN** la factura se sigue viendo completa y solo se pierde el ajuste automático
-

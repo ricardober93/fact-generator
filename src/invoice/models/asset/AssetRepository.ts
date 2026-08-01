@@ -13,6 +13,8 @@ export class AssetRepository extends CrudRepository<Asset> {
 
   @query() declare findOneByContentHash: (contentHash: string) => Promise<Asset | null>
 
+  declare findAll: () => Promise<Asset[]>
+
   async upload(payload: string): Promise<Asset> {
     if (typeof payload !== 'string' || payload.length === 0) {
       throw new CustomError({ message: 'Asset payload is required', httpCode: 400 })

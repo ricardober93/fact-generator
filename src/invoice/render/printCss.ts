@@ -1,4 +1,13 @@
-import { isTokenReference, tokenName, type IPage, type IPropValue, type ITheme } from './document'
+import {
+  isTokenReference,
+  tokenName,
+  usableWidthMm,
+  type IPage,
+  type IPropValue,
+  type ITheme,
+} from './document'
+
+export const PAGE_FOOTER_CLASS = 'wb-page-footer'
 
 export function tokenVariable(token: string): string {
   return `--${token.replace(/[^a-zA-Z0-9_-]/g, '-')}`
@@ -17,9 +26,17 @@ export function themeStyle(theme: ITheme): Record<string, string> {
   return style
 }
 
+function pageFooterPrintCss(page: IPage): string {
+  return (
+    `@media print { .${PAGE_FOOTER_CLASS} ` +
+    `{ position: fixed; bottom: 0; width: ${usableWidthMm(page)}mm; } }`
+  )
+}
+
 export function pageCss(page: IPage): string {
   const margin = [page.marginTopMm, page.marginRightMm, page.marginBottomMm, page.marginLeftMm]
     .map((value) => `${value}mm`)
     .join(' ')
-  return `@page { size: ${page.widthMm}mm ${page.heightMm}mm; margin: ${margin}; }`
+  const size = `@page { size: ${page.widthMm}mm ${page.heightMm}mm; margin: ${margin}; }`
+  return `${size} ${pageFooterPrintCss(page)}`
 }

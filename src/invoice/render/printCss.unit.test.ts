@@ -25,3 +25,17 @@ test('a non A4 page is reflected verbatim', () => {
   assert.match(css, /size: 216mm 279mm/)
   assert.match(css, /margin: 10mm/)
 })
+
+test('the footer is only fixed inside a print media query', () => {
+  const css = pageCss(A4_PORTRAIT)
+
+  assert.match(css, /@media print \{ \.wb-page-footer \{ position: fixed; bottom: 0;/)
+  assert.equal(css.indexOf('position: fixed') > css.indexOf('@media print'), true)
+})
+
+test('the printed footer spans the useful column, not the paper', () => {
+  const css = pageCss({ ...A4_PORTRAIT, marginLeftMm: 20, marginRightMm: 25 })
+
+  assert.match(css, /\.wb-page-footer \{[^}]*width: 165mm;/)
+  assert.doesNotMatch(css, /\.wb-page-footer \{[^}]*left:/)
+})

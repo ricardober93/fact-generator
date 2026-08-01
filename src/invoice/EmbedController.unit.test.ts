@@ -66,7 +66,7 @@ test('the document is server rendered, print CSS included, without hydration', a
 
   assert.match(page.text, /@page/)
   assert.match(page.text, /210mm 297mm/)
-  assert.match(page.text, /position:fixed/)
+  assert.match(page.text, /@media print \{ \.wb-page-footer \{ position: fixed;/)
   assert.match(page.text, /<wabot-island data-island="EmbedFrame"[^>]*><\/wabot-island>/)
   assert.match(page.text, /Acme S\.L\./)
 })

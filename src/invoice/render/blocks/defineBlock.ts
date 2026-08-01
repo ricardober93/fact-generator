@@ -1,5 +1,5 @@
 import type { VNode } from '@wabot-dev/framework/ui'
-import type { IBlock, ITheme } from '../document'
+import type { IBlock, IDocument, IPropValue, ITheme } from '../document'
 import type { IResolved } from '../bind'
 import type { IFormatOptions } from '../format'
 
@@ -23,12 +23,20 @@ export type IPropType =
 
 export type IBlockSchema = Record<string, IPropType>
 
+export interface IInspectorProps {
+  block: IBlock
+  doc: IDocument
+  onChange: (propName: string, value: IPropValue) => void
+}
+
+export type IBlockInspector = (props: IInspectorProps) => VNode | null
+
 export interface IBlockDefinition {
   kind: string
   schema: IBlockSchema
   defaults: Omit<IBlock, 'id' | 'kind'>
   render: IBlockRender
-  Inspector?: unknown
+  Inspector?: IBlockInspector
 }
 
 export function defineBlock(definition: IBlockDefinition): IBlockDefinition {
