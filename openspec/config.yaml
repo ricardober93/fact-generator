@@ -1,0 +1,145 @@
+schema: spec-driven
+
+context: |
+  # Generador de facturas — contexto del proyecto
+
+  Documento de referencia: ARCHITECTURE.md en la raíz. Este bloque es el resumen
+  que debe caber en la cabeza de quien escriba un artefacto; el detalle está allí.
+
+  ## Producto
+
+  Dos superficies sobre un mismo motor de render:
+  1. Un embed en iframe que pinta un documento y se transforma según sus parámetros de URL.
+  2. Un editor drag-and-drop de cajitas que produce y guarda ese documento.
+
+  ## Decisiones cerradas (no reabrir sin decisión explícita)
+
+  - Documento PRESENTACIONAL, no fiscal. Sin XML, firma digital, QR/CUFE ni catálogos
+    SRI/DIAN/CFDI. Nada de dominio tributario entra en las specs.
+  - Layout por BANDAS (header / detailHeader / detail / summary / pageFooter) con
+    posicionamiento absoluto de bloques DENTRO de cada banda. Es el modelo de los
+    motores de reportes. Resuelve N ítems y multipágina sin motor de paginación propio.
+  - Unidades en MILÍMETROS en todo el modelo. CSS entiende mm de forma nativa: el mismo
+    número sirve en editor, pantalla y papel, sin factor de escala.
+  - Las coordenadas x/y de un bloque son relativas A SU BANDA, no a la página. Es lo que
+    permite que la banda detail se repita por ítem.
+  - Embebido SOLO por el producto propio (mismo origen). Sin multi-tenant, sin API keys,
+    sin CSP por tenant, sin tokens firmados: las cookies de sesión ya funcionan.
+    Corolario: el embed va autenticado, así que NUNCA puede marcarse @view({ static }),
+    porque una vista static se salta los middlewares.
+  - Escritura con bloqueo optimista por campo "rev": el JSONB se reescribe entero, así
+    que sin rev la última escritura gana en silencio.
+  - Los datos del documento NUNCA viajan en el query string del iframe.
+  - PDF SOLO por impresión del navegador (Ctrl+P). Compromiso permanente: no habrá
+    Chrome headless, ni Gotenberg, ni endpoint de PDF, ni fuentes embebidas.
+  - Logos en base64 EN LA BASE DE DATOS, en su propia entidad Asset (nunca incrustados
+    en el JSON del template). Sin S3, sin disco, sin ruta estática, sin multipart.
+  - Un bloque nunca guarda un valor literal de tema: guarda una referencia a token
+    ("@primary", "@logo"). Por eso un parámetro del iframe repinta el documento entero
+    sin tocar ningún bloque.
+  - Abierta: paginación en pantalla. Posición por defecto = papel continuo; el corte real
+    se ve en Ctrl+P. paged.js solo si se justifica.
+
+  ## Arquitectura
+
+  Layout canónico del framework: carpeta de feature con los controladores en su raíz,
+  models/ dentro, ui/ para páginas y componentes.
+
+    src/invoice/
+      TemplateController.tsx   @uiController({ path: '/templates', app: true })
+      EmbedController.tsx      @uiController('/embed')
+      render/                  isomorfo: render(doc, data, params, assets) -> JSX.
+                               Corre en Node (SSR del embed) y en el navegador (preview
+                               del editor). Es el MISMO código: el preview no puede
+                               divergir del render porque no hay dos implementaciones.
+        render.tsx  bind.ts  theme.ts  blocks/
+      models/
+        template/Template.ts + TemplateRepository.ts
+        asset/Asset.ts + AssetRepository.ts
+      ui/
+        pages/  *.island.tsx
+
+  UNA sola regla de dependencia, y no necesita test: render/ importa solo
+  '@wabot-dev/framework/ui', nunca la raíz '@wabot-dev/framework'. /ui es la única
+  entrada con condición browser; la raíz arrastra express, pg, socket.io y los SDKs de
+  IA. Al violarla, esbuild mete express en el bundle del island y el build FALLA SOLO.
+  La herramienta ya es el test: no se escribe un test de arquitectura.
+
+  Corolario: render/ no puede usar Money (big.js, vive en la raíz) ni los validadores
+  @isString. Formatea con Intl.NumberFormat, que es nativo e isomorfo. La aritmética
+  con Money vive en los controladores.
+
+  SIN barrels index.ts: el runner importa todos los archivos de src/ por los
+  side-effects de los decoradores, así que un barrel no encapsula nada que nadie pueda
+  hacer cumplir; solo añade un archivo por carpeta y la trampa clásica de ciclos.
+  SIN archivo central de registro: una feature nueva es una carpeta hermana de invoice/.
+
+  Único punto de extensión: el registro de tipos de bloque en invoice/render/blocks/.
+  Un tipo de bloque es UN archivo que aporta schema + defaults + render + Inspector, y
+  con eso aparece en la paleta, se valida, se renderiza y tiene panel de propiedades.
+  No se añaden otras abstracciones de plugin, ni hooks, ni eventos.
+
+  No se construye: carpeta shared/, capa de servicios que reenvía al repositorio, test
+  de arquitectura, event bus interno, CQRS, DTOs duplicados por capa, monorepo, ni
+  interfaces con una sola implementación.
+
+  ## Stack
+
+  @wabot-dev/framework 1.0.3 sobre Node 22, TypeScript, ESM.
+  - UI: @uiController con @view (GET, SSR de Preact) y @action (POST, JSON).
+    Islands en archivos *.island.tsx, default export envuelto en island().
+    Import únicamente desde '@wabot-dev/framework/ui'; nunca desde preact directo.
+  - Persistencia: entidades Entity<IData> + clases @repository con el DSL @query por
+    nombre de método. Adaptador PgJson (columna data JSONB) si hay DATABASE_URL, en
+    memoria si no.
+  - Validación: DTOs con @isString/@isNumber/... Un handler recibe COMO MUCHO un
+    parámetro y es una clase validada, nunca req/res crudos.
+  - Tests: node:test vía 'npm run test:unit', archivos *.unit.test.ts.
+    createUiHarness para controladores UI, useMemoryRepositories para repositorios.
+  - El runner descubre los decoradores recorriendo todo src/ recursivamente. No hay
+    archivo central de registro: un módulo nuevo es una carpeta nueva.
+
+  ## Restricciones verificadas del framework (con origen)
+
+  - @action parsea el body con json() sin opciones -> límite de 100 kb
+    (runUiControllers.js:373). Un logo en base64 debe quedar bajo ~100 kb de texto
+    (~73 kb de imagen). Se normaliza en el cliente con canvas antes de subir.
+  - Los islands se bundlean con esbuild, bundle:true y sin external (UiBundler.js:64):
+    sí se pueden usar dependencias npm dentro de un island, siempre que sean agnósticas
+    de framework (NO React-only).
+  - El bundler recibe un mapa alias de esbuild y NO lee tsconfig.paths (UiBundler.js:71):
+    dentro de render/ y de árboles de island, imports relativos. El alias @/ queda para
+    código de servidor.
+  - @view({ static }) se salta los middlewares: nunca marcar static una ruta autenticada.
+  - El adaptador PG no proyecta columnas: findAll() trae el blob data entero. Por eso los
+    assets pesados van en entidad propia.
+  - El scanner ignora directorios que empiezan por "__": usar __fixtures__/ para golden files.
+
+  ## Seguridad
+
+  - Los logos se renderizan SIEMPRE como <img src="data:...">, NUNCA inlineando el markup
+    SVG en el DOM. En contexto <img> el navegador no ejecuta los scripts que pueda llevar
+    un SVG; inlineado como markup, sí los ejecuta.
+  - Allowlist de MIME por magic bytes (png, jpeg, webp, svg+xml), no por lo que declara
+    el cliente. La validación de tamaño va en el servidor aunque el cliente ya normalice.
+  - El texto de un bloque se guarda como estructura, nunca como HTML crudo.
+  - El embed valida sus parámetros contra el schema "params" que declara el propio
+    template. Un parámetro no declarado se ignora.
+
+rules:
+  proposal:
+    - Escribir en español.
+    - Incluir siempre una sección "Fuera de alcance" que reafirme las decisiones cerradas
+      que el cambio NO reabre.
+  design:
+    - Escribir en español.
+    - 'No repetir ARCHITECTURE.md: referenciarlo y documentar solo lo que este cambio
+      añade o contradice.'
+    - Justificar cada dependencia npm nueva contra la alternativa nativa o ya instalada.
+  spec:
+    - Escribir en español.
+    - 'Los requisitos del motor de render deben ser verificables sin servidor ni base
+      de datos: son sobre una función pura.'
+  tasks:
+    - Escribir en español.
+    - Toda lógica no trivial deja un *.unit.test.ts. Sin frameworks de test extra.

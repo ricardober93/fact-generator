@@ -1,0 +1,16 @@
+version: 2
+updates:
+  - package-ecosystem: 'npm'
+    directory: '/'
+    schedule:
+      interval: 'weekly'
+    open-pull-requests-limit: 5
+    assignees: []
+    labels:
+      - 'dependencies'
+      - 'security'
+    groups:
+      runtime:
+        dependency-type: 'production'
+      dev-tools:
+        dependency-type: 'development'

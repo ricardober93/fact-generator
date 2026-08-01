@@ -1,0 +1,32 @@
+{
+  "name": "fact-generator",
+  "version": "1.0.0",
+  "main": "./dist/run.js",
+  "type": "module",
+  "scripts": {
+    "dev": "node --import=@yucacodes/ts --import=@wabot-dev/framework/ui/css-loader --env-file=./.env ./src/_run_.ts",
+    "dev:watch": "node --import=@yucacodes/ts --import=@wabot-dev/framework/ui/css-loader --env-file=./.env --watch --watch-preserve-output ./src/_run_.ts",
+    "cmd": "node --import=@yucacodes/ts ./src/_cmd_.ts",
+    "build": "node ./node_modules/@wabot-dev/framework/dist/build/build.js",
+    "start": "WABOT_BUNDLED=1 node ./dist/entry.js",
+    "skills:sync": "wabot-skills sync",
+    "fmt": "prettier --write .",
+    "fmt:check": "prettier --check .",
+    "tsc": "tsc --noEmit",
+    "test:unit": "node --import=@yucacodes/ts --import=@wabot-dev/framework/ui/css-loader --env-file=./.env  --test './src/**/*.unit.test.ts'",
+    "test:eval": "node --import=@yucacodes/ts --env-file=./.env  --test './src/**/*.eval.test.ts'"
+  },
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "dependencies": {
+    "@wabot-dev/framework": "^1.0.3"
+  },
+  "devDependencies": {
+    "@swc/core": "^1.15.8",
+    "@types/ws": "^8.18.1",
+    "@yucacodes/ts": "^0.1.0",
+    "prettier": "^3.5.3",
+    "typescript": "^6.0.3"
+  }
+}
