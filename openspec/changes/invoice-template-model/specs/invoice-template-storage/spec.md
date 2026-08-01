@@ -67,9 +67,13 @@ descargaría todas las imágenes.
 
 ### Requirement: Los assets son inmutables y direccionados por contenido
 
-El id de un asset DEBE (MUST) derivarse del hash de su contenido. Un asset DEBE ser inmutable una
-vez creado. Subir dos veces el mismo contenido DEBE devolver el mismo id sin crear una
-segunda fila.
+Un asset DEBE (MUST) llevar el hash de su contenido y DEBE ser inmutable una vez creado.
+Subir dos veces el mismo contenido DEBE devolver el mismo asset, con el mismo id, sin crear
+una segunda fila.
+
+El hash es un campo propio, no el id: el adaptador asigna el id en `create()`
+(`@repository.js:129` sobrescribe cualquier id previo), de modo que el id lo sigue
+gobernando el framework y la deduplicación se resuelve consultando por hash.
 
 Con esto, un logo compartido por cuarenta plantillas es una sola fila, y no hace falta
 recolección de basura ni borrado en cascada.

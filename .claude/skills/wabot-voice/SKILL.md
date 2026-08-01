@@ -42,6 +42,7 @@ Inbound needs **no wiring**: `run()` auto-loads the realtime engine (gated by `O
 `@voiceBot(MindsetCtor)` is a **constructor parameter** decorator injecting a `VoiceBot` scoped to that mindset — the voice analogue of `@chatBot`. Put several in one controller and pick by `call.connection.to` instead of building a controller per mindset.
 
 `VoiceBot.answer(call, options?)`:
+
 - Opens a `RealtimeVoiceSession` bridging `call.media` ⇄ the realtime engine, using the mindset's system prompt and tools.
 - `options: { greeting?: string; voice?: string }` — `greeting` is the instruction for the bot's opening line.
 - Returns the `RealtimeVoiceSession` (usually you just `await` it).
@@ -78,13 +79,13 @@ interface IVoiceCallConnection {
 })
 ```
 
-| Option | Type | Notes |
-| --- | --- | --- |
-| `publicBaseUrl` | `string \| ConfigReference<string>` | Builds the webhook + `wss://` media URL. |
-| `webhookPath` / `mediaPath` | `string \| ConfigReference<string>` | Default `/voice/twilio/incoming` and `/voice/twilio/media`. Give each channel distinct paths if you register more than one. |
-| `voice` | `string \| ConfigReference<string>` | Provider voice name. |
-| `verifySignature` | `boolean \| ConfigReference<boolean>` | Validate `X-Twilio-Signature`; invalid/missing → 403, no stream. |
-| `authToken` | `string \| ConfigReference<string>` | Token used to verify; multi-account routes also try the token of the account owning `To` (see below). |
+| Option                      | Type                                  | Notes                                                                                                                       |
+| --------------------------- | ------------------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
+| `publicBaseUrl`             | `string \| ConfigReference<string>`   | Builds the webhook + `wss://` media URL.                                                                                    |
+| `webhookPath` / `mediaPath` | `string \| ConfigReference<string>`   | Default `/voice/twilio/incoming` and `/voice/twilio/media`. Give each channel distinct paths if you register more than one. |
+| `voice`                     | `string \| ConfigReference<string>`   | Provider voice name.                                                                                                        |
+| `verifySignature`           | `boolean \| ConfigReference<boolean>` | Validate `X-Twilio-Signature`; invalid/missing → 403, no stream.                                                            |
+| `authToken`                 | `string \| ConfigReference<string>`   | Token used to verify; multi-account routes also try the token of the account owning `To` (see below).                       |
 
 Config values may be literals or **core config references** (`str`/`bool` from `@wabot-dev/framework`, resolved from env like the chat decorators — `twilio.verify.signature` → `TWILIO_VERIFY_SIGNATURE`, `:` gives the default). Point each Twilio number's Voice webhook (HTTP POST) at the channel's `webhookPath`. One route serves any number of numbers/accounts — Twilio always sends `To`.
 
@@ -94,8 +95,8 @@ Config values may be literals or **core config references** (`str`/`bool` from `
 import { container, TwilioCallService } from '@wabot-dev/framework'
 
 const { callId } = await container.resolve(TwilioCallService).initiate({
-  to: '+57300…',              // normalized to +57 E.164 when no country code
-  from: '+15551112222',       // optional caller-ID; must belong to a registered account
+  to: '+57300…', // normalized to +57 E.164 when no country code
+  from: '+15551112222', // optional caller-ID; must belong to a registered account
   greeting: 'Recuérdale la cita de mañana y despídete.',
   bot: 'PhoneAssistantMindset', // optional: a name or a Mindset class; else the controller decides
 })
@@ -109,8 +110,12 @@ const { callId } = await container.resolve(TwilioCallService).initiate({
 import { container, TwilioAccountRegistry } from '@wabot-dev/framework'
 
 const accounts = container.resolve(TwilioAccountRegistry)
-accounts.register({ accountSid: 'AC_sales',   authToken: '…', numbers: ['+15551112222'] })
-accounts.register({ accountSid: 'AC_support', authToken: '…', numbers: ['+573001112233', '+573004445566'] })
+accounts.register({ accountSid: 'AC_sales', authToken: '…', numbers: ['+15551112222'] })
+accounts.register({
+  accountSid: 'AC_support',
+  authToken: '…',
+  numbers: ['+573001112233', '+573004445566'],
+})
 ```
 
 Each outbound call dials with the credentials of the account that owns its `from` (matched format-insensitively). The single env account (`TWILIO_ACCOUNT_SID` / `TWILIO_AUTH_TOKEN` / `TWILIO_NUMBER`) is registered automatically, so `initiate({ to })` with no `from` uses the first registered number.
@@ -126,7 +131,11 @@ Engines carry `@realtimeVoiceEngine({ provider: 'name' })` and implement `IRealt
 `run()` selects it automatically when `OPENAI_API_KEY` is set. To wire manually (outside the runner):
 
 ```typescript
-import { runRealtimeVoiceEngines, runVoiceControllers, OpenaiRealtimeVoiceEngine } from '@wabot-dev/framework'
+import {
+  runRealtimeVoiceEngines,
+  runVoiceControllers,
+  OpenaiRealtimeVoiceEngine,
+} from '@wabot-dev/framework'
 runRealtimeVoiceEngines([OpenaiRealtimeVoiceEngine])
 runVoiceControllers([VoiceController])
 ```

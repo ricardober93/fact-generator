@@ -75,9 +75,9 @@ aparece en la paleta, se valida, se pinta y tiene panel de propiedades.
 // invoice/render/blocks/qr.tsx
 export default defineBlock({
   kind: 'qr',
-  schema:    { value: 'string', ecc: 'enum:L,M,Q,H' },
-  defaults:  { w: 25, h: 25, ecc: 'M' },        // milímetros
-  render:    (block, ctx) => <img src={ctx.qr(block.value)} />,
+  schema: { value: 'string', ecc: 'enum:L,M,Q,H' },
+  defaults: { w: 25, h: 25, ecc: 'M' }, // milímetros
+  render: (block, ctx) => <img src={ctx.qr(block.value)} />,
   Inspector: (props) => <QrPanel {...props} />,
 })
 ```
@@ -111,24 +111,24 @@ vive en el documento, no en el código del controlador.
 
 ## 5. Lo que NO se construye
 
-| | Por qué |
-|---|---|
-| `shared/` | Termina siendo el cajón de sastre. Lo compartido vive donde nació. |
-| Capa de servicios que reenvía al repositorio | Un controlador puede inyectar el repositorio. |
-| Test de arquitectura | La regla que importa ya la obliga el build (§1). |
-| Interfaces con una sola implementación | Se añade la interfaz cuando aparezca la segunda. |
-| Event bus, CQRS, DTOs por capa, monorepo | Nada de esto resuelve un problema que tengamos. |
+|                                              | Por qué                                                            |
+| -------------------------------------------- | ------------------------------------------------------------------ |
+| `shared/`                                    | Termina siendo el cajón de sastre. Lo compartido vive donde nació. |
+| Capa de servicios que reenvía al repositorio | Un controlador puede inyectar el repositorio.                      |
+| Test de arquitectura                         | La regla que importa ya la obliga el build (§1).                   |
+| Interfaces con una sola implementación       | Se añade la interfaz cuando aparezca la segunda.                   |
+| Event bus, CQRS, DTOs por capa, monorepo     | Nada de esto resuelve un problema que tengamos.                    |
 
 ## 6. Restricciones verificadas del framework
 
-| Restricción | Origen |
-|---|---|
-| `@action` parsea con `json()` sin opciones → límite de **100 kb** de body | `runUiControllers.js:373` |
-| Los islands se bundlean con `bundle:true` y sin `external`: sí se pueden usar deps npm dentro de un island (agnósticas de framework, no React-only) | `UiBundler.js:64` |
-| El bundler recibe `alias` de esbuild y **no** lee `tsconfig.paths` | `UiBundler.js:71` |
-| `@view({ static })` se salta los middlewares — nunca en ruta autenticada | `wabot-ui` |
-| El adaptador PG no proyecta columnas: `findAll()` trae el blob `data` entero | `PgJsonRepositoryAdapter` |
-| El scanner ignora directorios que empiezan por `__` | `scanner.js` |
+| Restricción                                                                                                                                         | Origen                    |
+| --------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------- |
+| `@action` parsea con `json()` sin opciones → límite de **100 kb** de body                                                                           | `runUiControllers.js:373` |
+| Los islands se bundlean con `bundle:true` y sin `external`: sí se pueden usar deps npm dentro de un island (agnósticas de framework, no React-only) | `UiBundler.js:64`         |
+| El bundler recibe `alias` de esbuild y **no** lee `tsconfig.paths`                                                                                  | `UiBundler.js:71`         |
+| `@view({ static })` se salta los middlewares — nunca en ruta autenticada                                                                            | `wabot-ui`                |
+| El adaptador PG no proyecta columnas: `findAll()` trae el blob `data` entero                                                                        | `PgJsonRepositoryAdapter` |
+| El scanner ignora directorios que empiezan por `__`                                                                                                 | `scanner.js`              |
 
 Consecuencia del límite de 100 kb: un logo se normaliza **en el cliente** con
 `createImageBitmap` → `<canvas>` a 600 px → `toDataURL()`, y se sube como JSON plano. Sin

@@ -1,0 +1,26 @@
+import { Entity, type IEntityData } from '@wabot-dev/framework'
+import type { IDocument } from '../../render/document'
+
+export interface ITemplateData extends IEntityData {
+  name: string
+  doc: IDocument
+  rev: number
+}
+
+export class Template extends Entity<ITemplateData> {
+  get name(): string {
+    return this.data.name
+  }
+
+  get rev(): number {
+    return this.data.rev
+  }
+
+  get doc(): IDocument {
+    return this.data.doc as IDocument
+  }
+
+  applyRevision(doc: IDocument): void {
+    this.update({ doc, rev: this.data.rev + 1 })
+  }
+}

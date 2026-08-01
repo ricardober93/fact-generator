@@ -42,12 +42,12 @@ un island arrastraría express al bundle. Al revés funciona: el servidor puede 
 
 Alternativas descartadas:
 
-| Opción | Por qué no |
-|---|---|
-| `@isString`/`@isNumber` del framework | Viven en la raíz del paquete. `render/` no puede importarla. |
-| zod / valibot | Dependencia nueva, y no resuelve la mitad del problema (ver abajo). |
+| Opción                                | Por qué no                                                          |
+| ------------------------------------- | ------------------------------------------------------------------- |
+| `@isString`/`@isNumber` del framework | Viven en la raíz del paquete. `render/` no puede importarla.        |
+| zod / valibot                         | Dependencia nueva, y no resuelve la mitad del problema (ver abajo). |
 
-El schema de un tipo de bloque tiene **doble uso**: valida el bloque *y* genera su panel
+El schema de un tipo de bloque tiene **doble uso**: valida el bloque _y_ genera su panel
 de propiedades en el editor. Por eso es un descriptor mínimo y legible
 (`{ value: 'string', ecc: 'enum:L,M,Q,H' }`) del que se puede derivar tanto un chequeo
 como un formulario. Un esquema de zod valida bien, pero introspeccionarlo para dibujar
@@ -70,8 +70,15 @@ crítica dura una lectura y una escritura.
 
 ### Los assets son inmutables y direccionados por contenido
 
-El id de un asset es el SHA-256 de sus bytes (`node:crypto`, nativo). Subir el mismo logo
-dos veces devuelve el mismo id y no crea una fila nueva.
+Cada asset guarda el SHA-256 de sus bytes (`node:crypto`, nativo) en un campo
+`contentHash`, con un `@query() findOneByContentHash`. Subir el mismo logo dos veces
+devuelve el mismo asset y no crea una fila nueva.
+
+Al implementarlo apareció una restricción que no se había visto al diseñar: `create()`
+hace `item['data'].id = generate()` (`@repository.js:129`), así que un id fijado por la
+aplicación se descarta. El hash va por tanto en su propio campo y el id lo sigue asignando
+el framework. Todo lo observable se mantiene —subida idempotente, una fila por contenido,
+sin borrado en cascada ni recolección de basura—; lo único que cambia es dónde vive el hash.
 
 Alternativa descartada: `Asset` con `templateId` y borrado en cascada. Obliga a decidir qué
 pasa cuando se borra un bloque, cuando se duplica una plantilla y cuando dos plantillas
@@ -133,7 +140,7 @@ Rollback: revertir el commit.
 ## Open Questions
 
 - **Límite de tamaño de asset en el servidor.** Propuesta: **64 kb de bytes decodificados**.
-  El techo del `@action` son 100 kb de *base64*, que equivalen a ~73 kb de bytes: un límite
+  El techo del `@action` son 100 kb de _base64_, que equivalen a ~73 kb de bytes: un límite
   de dominio por encima de esa cifra sería letra muerta, porque el body se rechazaría antes
   de llegar al repositorio. 64 kb queda justo por debajo, y sigue siendo holgado frente a
   los ~13–53 kb que produce la normalización a 600 px.
