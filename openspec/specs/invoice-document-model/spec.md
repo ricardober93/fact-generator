@@ -2,7 +2,10 @@
 
 ## Purpose
 
-TBD - created by archiving change invoice-template-model. Update Purpose after archive.
+La forma del documento de factura: cinco bandas con bloques posicionados en milímetros
+relativos a su banda, el registro de tipos de bloque que aporta schema, defaults y render, las
+referencias a token en vez de literales, el contrato de datos y el de parámetros del embed, y la
+validación pura que decide si un documento es válido.
 
 ## Requirements
 
@@ -112,12 +115,17 @@ sea editable. Una definición solo aporta `Inspector` cuando alguna de sus propi
 editar por su tipo. Un tipo de bloque nuevo NO DEBE (MUST NOT) tener que escribir un panel de
 propiedades para tenerlo.
 
-El cambio incorpora cuatro tipos: `text`, `image`, `box` y `line`.
+Una definición PUEDE aportar además dos declaraciones opcionales: las bandas en las que se
+admite, y una función `renderHeader` que produce la cabecera que le corresponde cuando el bloque
+vive en la banda `detail`. Ninguna de las dos es obligatoria y su ausencia no cambia el
+comportamiento de los tipos que ya existen.
+
+El registro incorpora seis tipos: `text`, `image`, `box`, `line`, `table` y `list`.
 
 #### Scenario: Registrar un tipo hace que exista
 
-- **WHEN** se consulta el registro tras cargar los cuatro archivos de tipo
-- **THEN** devuelve exactamente los tipos `text`, `image`, `box` y `line`
+- **WHEN** se consulta el registro tras cargar los archivos de tipo
+- **THEN** devuelve exactamente los tipos `text`, `image`, `box`, `line`, `table` y `list`
 
 #### Scenario: Bloque de tipo desconocido
 
@@ -140,6 +148,11 @@ El cambio incorpora cuatro tipos: `text`, `image`, `box` y `line`.
 - **WHEN** se define un tipo de bloque que no aporta `Inspector`
 - **THEN** la definición es válida y el registro la acepta, y el tipo de cada propiedad de su
   schema es lo que determina cómo se edita
+
+#### Scenario: Un tipo sin cabecera ni bandas declaradas sigue siendo válido
+
+- **WHEN** se define un tipo que no declara `renderHeader` ni bandas admitidas
+- **THEN** la definición es válida y el tipo se admite en las cinco bandas
 
 ### Requirement: Los bloques referencian tokens, no literales
 
@@ -221,3 +234,136 @@ primero, y cada problema DEBE indicar la ruta del campo culpable.
 
 - **WHEN** se valida un documento
 - **THEN** el documento de entrada queda sin modificar
+
+### Requirement: El tipo de propiedad de celdas
+
+Una propiedad declarada de tipo `cells` DEBE (MUST) guardarse como una lista ordenada de celdas.
+Cada celda declara su etiqueta como cadena literal, su ruta de datos, su formato opcional, su
+ancho en milímetros y su alineación. Una celda NO DEBE (MUST NOT) guardar marcado, ni un valor
+literal de tema: como cualquier otra propiedad, el color y la tipografía salen de los tokens.
+
+Es la estructura que permite que una tabla de N columnas sea un solo bloque, con un único sitio
+donde cambiar el ancho de una columna.
+
+#### Scenario: Una lista de celdas bien formada se acepta
+
+- **WHEN** se valida un bloque cuya propiedad de celdas declara dos celdas con etiqueta, ruta,
+  ancho positivo y alineación admitida
+- **THEN** la validación pasa
+
+#### Scenario: Un ancho de celda no válido se rechaza
+
+- **WHEN** se valida un bloque con una celda cuyo ancho no es un número mayor que cero
+- **THEN** la validación falla nombrando la celda culpable
+
+#### Scenario: Una alineación desconocida se rechaza
+
+- **WHEN** se valida un bloque con una celda cuya alineación no está entre las admitidas
+- **THEN** la validación falla nombrando el valor no admitido
+
+#### Scenario: Una etiqueta que no es texto se rechaza
+
+- **WHEN** se valida un bloque con una celda cuya etiqueta no es una cadena
+- **THEN** la validación falla nombrando la celda culpable
+
+### Requirement: Una definición puede declarar las bandas que admite
+
+Una definición de bloque PUEDE declarar la lista de bandas en las que se admite. Si la declara, un
+documento con un bloque de ese tipo en otra banda NO DEBE (MUST NOT) validar. Si no la declara, el
+tipo se admite en las cinco bandas.
+
+Un bloque cuyo render depende de un ítem de detalle solo tiene sentido en la banda que se repite
+por ítem; la declaración lo hace explícito en el modelo en vez de dejarlo al criterio de quien
+edita.
+
+#### Scenario: Sin declaración se admite en cualquier banda
+
+- **WHEN** se valida un documento con bloques de un tipo que no declara bandas, repartidos en
+  varias bandas
+- **THEN** la validación pasa
+
+#### Scenario: Un bloque en una banda no admitida falla
+
+- **WHEN** se valida un documento con un bloque de un tipo que solo admite `detail` colocado en
+  `pageFooter`
+- **THEN** la validación falla nombrando el tipo y la banda
+
+#### Scenario: El mismo bloque en su banda es válido
+
+- **WHEN** ese mismo bloque está en `detail`
+- **THEN** la validación pasa
+
+### Requirement: Un bloque de caja puede rotarse
+
+El tipo de bloque `box` DEBE (MUST) declarar en su schema una propiedad numérica de rotación
+expresada en grados, con valor por defecto `0`. La rotación gira la caja alrededor de su centro y
+NO DEBE (MUST NOT) alterar su geometría declarada: `xMm`, `yMm`, `widthMm` y `heightMm` siguen
+describiendo la caja sin rotar, que es lo que el lienzo mide, mueve y encuadra.
+
+Es la propiedad que hace posibles los chevrones y el mosaico de los diseños sin introducir un tipo
+de bloque nuevo.
+
+#### Scenario: Una caja nueva no está rotada
+
+- **WHEN** se crea un bloque `box` indicando solo su `kind`
+- **THEN** su rotación es `0`
+
+#### Scenario: La rotación no cambia la geometría
+
+- **WHEN** se rota una caja 45 grados
+- **THEN** su `xMm`, `yMm`, `widthMm` y `heightMm` no cambian
+
+#### Scenario: Un documento anterior sigue validando
+
+- **WHEN** se valida un documento guardado antes de existir esta propiedad
+- **THEN** la validación lo acepta y la caja se comporta como no rotada
+
+### Requirement: Una tabla puede pintar su cabecera con color propio
+
+El tipo de bloque `table` DEBE (MUST) declarar, además del color de sus filas, un color propio para
+la cabecera que proyecta en la banda `detailHeader`. Ambas propiedades son referencias a token y el
+color de cabecera toma por defecto el mismo token que el color del cuerpo, de modo que un documento
+anterior no cambia de aspecto.
+
+Es lo que permite que la cabecera vaya sobre una barra de color y su texto siga siendo legible.
+
+#### Scenario: Por defecto la cabecera va del color del cuerpo
+
+- **WHEN** se crea un bloque `table` indicando solo su `kind`
+- **THEN** su color de cabecera es el mismo token que el color de sus filas
+
+#### Scenario: Cabecera y filas se colorean por separado
+
+- **WHEN** una tabla declara un color de cabecera distinto al de sus filas
+- **THEN** el color de cabecera se aplica solo a la cabecera proyectada y las filas conservan el
+  suyo
+
+#### Scenario: El color de cabecera es una referencia a token
+
+- **WHEN** se valida una tabla cuyo color de cabecera es un literal como `"#ffffff"`
+- **THEN** la validación falla exigiendo una referencia a token
+
+### Requirement: Un bloque puede marcarse como decorativo
+
+Un bloque PUEDE llevar una marca booleana de decoración, ausente por defecto. La marca NO DEBE
+(MUST NOT) tener ningún efecto sobre la validación ni sobre el render: es una ayuda de edición que
+consumen el lienzo y la lista de capas.
+
+Un documento sin ninguna marca de decoración DEBE (MUST) validar y renderizar exactamente igual que
+antes de existir la marca.
+
+#### Scenario: La marca es opcional
+
+- **WHEN** se valida un documento cuyos bloques no llevan marca de decoración
+- **THEN** la validación lo acepta
+
+#### Scenario: La marca no altera la validación
+
+- **WHEN** se valida un documento con bloques marcados como decorativos
+- **THEN** la validación lo acepta igual que si no lo estuvieran
+
+#### Scenario: La marca no altera el render
+
+- **WHEN** se renderiza un documento y se vuelve a renderizar con los mismos bloques marcados como
+  decorativos
+- **THEN** el marcado resultante es el mismo
