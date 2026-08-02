@@ -26,6 +26,8 @@ export function invoiceDocumentFixture(): IDocument {
     { path: 'cliente.nombre', type: 'string', required: true },
     { path: 'factura.numero', type: 'string', required: true },
     { path: 'factura.total', type: 'number', required: true },
+    { path: 'factura.base', type: 'number', required: false },
+    { path: 'factura.impuestos', type: 'number', required: false },
     { path: 'item.descripcion', type: 'string', required: true },
     { path: 'item.cantidad', type: 'number', required: true },
     { path: 'item.total', type: 'number', required: true },
@@ -80,29 +82,26 @@ export function invoiceDocumentFixture(): IDocument {
     }),
   ]
 
-  doc.bands.detailHeader.blocks = [
-    textBlock('colDescription', [literal('Descripción')], { xMm: 0, widthMm: 90, heightMm: 6 }),
-    textBlock('colQuantity', [literal('Cant.')], { xMm: 95, widthMm: 20, heightMm: 6 }),
-    textBlock('colTotal', [literal('Total')], {
-      xMm: 130,
-      widthMm: 50,
-      heightMm: 6,
-      props: { align: 'right' },
-    }),
-  ]
-
   doc.bands.detail.blocks = [
-    textBlock('itemDescription', [binding('item.descripcion')], {
+    applyDefaults('table', {
+      id: 'items',
       xMm: 0,
-      widthMm: 90,
+      yMm: 0,
+      widthMm: 180,
       heightMm: 6,
-    }),
-    textBlock('itemQuantity', [binding('item.cantidad')], { xMm: 95, widthMm: 20, heightMm: 6 }),
-    textBlock('itemTotal', [binding('item.total', 'currency')], {
-      xMm: 130,
-      widthMm: 50,
-      heightMm: 6,
-      props: { align: 'right' },
+      props: {
+        cells: [
+          { label: 'Descripción', path: 'item.descripcion', widthMm: 90, align: 'left' },
+          { label: 'Cant.', path: 'item.cantidad', widthMm: 20, align: 'left' },
+          {
+            label: 'Total',
+            path: 'item.total',
+            format: 'currency',
+            widthMm: 70,
+            align: 'right',
+          },
+        ],
+      },
     }),
   ]
 
@@ -117,6 +116,28 @@ export function invoiceDocumentFixture(): IDocument {
       props: { align: 'right', fontSize: '@fontSizeTitle', color: '@primary' },
     }),
   ]
+
+  doc.bands.summary.blocks.push(
+    applyDefaults('list', {
+      id: 'totals',
+      xMm: 90,
+      yMm: 18,
+      widthMm: 90,
+      heightMm: 10,
+      props: {
+        cells: [
+          { label: 'Base', path: 'factura.base', format: 'currency', widthMm: 40, align: 'right' },
+          {
+            label: 'Impuestos',
+            path: 'factura.impuestos',
+            format: 'currency',
+            widthMm: 40,
+            align: 'right',
+          },
+        ],
+      },
+    }),
+  )
 
   doc.bands.pageFooter.blocks = [
     textBlock('footerNote', [binding('emisor.pie')], {

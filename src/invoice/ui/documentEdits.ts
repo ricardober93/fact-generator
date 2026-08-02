@@ -1,5 +1,7 @@
 import { applyDefaults } from '../render/blocks/registry'
 import {
+  isCellList,
+  isTextContent,
   usableWidthMm,
   type IBandName,
   type IBlock,
@@ -58,6 +60,30 @@ export function setBlockRect(
   return withBlock(doc, band, blockId, (block) => Object.assign(block, bounded))
 }
 
+export function setBlockRects(
+  doc: IDocument,
+  band: IBandName,
+  rects: Record<string, IRect>,
+): IDocument {
+  requireBand(doc, band)
+  if (!rects) throw new Error('a map of rects is required')
+  const box = bandBoxOf(doc, band)
+  const next = cloneDoc(doc)
+  next.bands[band].blocks = next.bands[band].blocks.map((block) =>
+    rects[block.id] ? { ...block, ...clampRect(rects[block.id], box) } : block,
+  )
+  return next
+}
+
+export function removeBlocks(doc: IDocument, band: IBandName, blockIds: string[]): IDocument {
+  requireBand(doc, band)
+  if (!Array.isArray(blockIds)) throw new Error('a list of block ids is required')
+  if (blockIds.length === 0) return doc
+  const next = cloneDoc(doc)
+  next.bands[band].blocks = next.bands[band].blocks.filter((block) => !blockIds.includes(block.id))
+  return next
+}
+
 export function setBlockProp(
   doc: IDocument,
   band: IBandName,
@@ -104,6 +130,14 @@ export function setBandHeight(doc: IDocument, band: IBandName, heightMm: number)
   return next
 }
 
+function boundPathsOf(value: IPropValue): string[] {
+  if (isCellList(value)) return value.map((cell) => cell.path).filter((path) => !!path)
+  if (!isTextContent(value)) return []
+  return value.fragments
+    .filter((fragment) => fragment.type === 'binding' && !!fragment.path)
+    .map((fragment) => (fragment.type === 'binding' ? fragment.path : ''))
+}
+
 export function applyPropChange(
   doc: IDocument,
   band: IBandName,
@@ -112,14 +146,7 @@ export function applyPropChange(
   value: IPropValue,
 ): IDocument {
   const next = setBlockProp(doc, band, blockId, propName, value)
-  if (!value || typeof value !== 'object' || !('fragments' in value)) return next
-  return value.fragments.reduce(
-    (current, fragment) =>
-      fragment.type === 'binding' && fragment.path
-        ? declareDataPath(current, fragment.path)
-        : current,
-    next,
-  )
+  return boundPathsOf(value).reduce((current, path) => declareDataPath(current, path), next)
 }
 
 export function setThemeToken(doc: IDocument, token: string, value: IThemeValue): IDocument {

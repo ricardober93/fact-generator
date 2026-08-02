@@ -13,6 +13,7 @@ import { TemplateRepository } from './models/template/TemplateRepository'
 import { invoiceDocumentFixture } from './render/__fixtures__/invoiceDocument'
 import { INVOICE_DATA, INVOICE_ITEMS } from './render/__fixtures__/renderToHtml'
 import type { IHandoffRecord } from './models/handoff/Handoff'
+import { TEMPLATE_PRESETS } from './templates/presets'
 
 useMemoryRepositories()
 container.register(Locker, { useToken: InMemoryLocker })
@@ -32,7 +33,7 @@ test('with no templates the index states it plainly', async () => {
 
   assert.equal(page.status, 200)
   assert.match(page.text, /Todavía no hay plantillas/)
-  assert.doesNotMatch(page.text, /<tbody>/)
+  assert.doesNotMatch(page.text, /<table>/)
 })
 
 test('the index lists a template as a row once one exists', async () => {
@@ -99,4 +100,29 @@ test('the editor page ships no external stylesheet, font or icon', async () => {
   assert.doesNotMatch(page.text, /url\(\s*['"]?https?:/)
   assert.doesNotMatch(page.text, /@import/)
   assert.doesNotMatch(page.text, /@font-face/)
+})
+
+test('the gallery shows a card per design plus the blank one', async () => {
+  const page = await harness.get('/templates')
+
+  for (const preset of TEMPLATE_PRESETS) {
+    assert.match(page.text, new RegExp(`value="${preset.id}"`))
+    assert.ok(page.text.includes(preset.name), `${preset.id} has no name on its card`)
+    assert.ok(page.text.includes(preset.description), `${preset.id} has no description`)
+  }
+  assert.match(page.text, /id="preset-blank"[^>]*checked/)
+})
+
+test('every card carries a document painted by the render engine', async () => {
+  const page = await harness.get('/templates')
+
+  const papers = page.text.match(/data-band="header"/g) ?? []
+  assert.equal(papers.length, TEMPLATE_PRESETS.length)
+  assert.match(page.text, /class="wb-preset-paper"/)
+})
+
+test('the gallery never leaks a page rule into the templates page', async () => {
+  const page = await harness.get('/templates')
+
+  assert.equal(page.text.includes('@page'), false)
 })

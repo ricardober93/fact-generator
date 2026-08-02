@@ -3,6 +3,7 @@ import {
   CustomError,
   isNotEmpty,
   isNumber,
+  isOptional,
   isPresent,
   isString,
 } from '@wabot-dev/framework'
@@ -13,14 +14,20 @@ import { AssetRepository } from './models/asset/AssetRepository'
 import { Template } from './models/template/Template'
 import { TemplateRepository } from './models/template/TemplateRepository'
 import { emptyDocument, type IDocument } from './render/document'
+import { findTemplatePreset } from './templates/presets'
 import { AppLayout } from './ui/AppLayout'
 import Editor from './ui/Editor.island'
+import { PresetGallery } from './ui/PresetGallery'
 import type { IAssetChoice } from './ui/propertyEditors'
 
 export class CreateTemplateDto {
   @isString()
   @isNotEmpty()
   name!: string
+
+  @isOptional()
+  @isString()
+  preset?: string
 }
 
 export class SaveTemplateDto {
@@ -48,6 +55,22 @@ function notFound(): CustomError {
     code: 'TEMPLATE_NOT_FOUND',
     httpCode: 404,
   })
+}
+
+function unknownPreset(preset: string): CustomError {
+  return new CustomError({
+    message: `Unknown template preset "${preset}"`,
+    humanMessage: 'Ese diseño de plantilla no existe.',
+    code: 'TEMPLATE_PRESET_NOT_FOUND',
+    httpCode: 400,
+  })
+}
+
+function documentForPreset(preset: string | undefined): IDocument {
+  if (!preset) return emptyDocument()
+  const found = findTemplatePreset(preset)
+  if (!found) throw unknownPreset(preset)
+  return found.build()
 }
 
 function conflict(rev: number): CustomError {
@@ -105,6 +128,9 @@ function TemplateList({ templates }: { templates: Template[] }): VNode {
       <form method="post" action="/templates/_action/create" class="stack-sm">
         <label for="template-name">Nombre de la plantilla</label>
         <input id="template-name" name="name" required />
+
+        <PresetGallery />
+
         <button type="submit">Crear plantilla</button>
       </form>
     </main>
@@ -145,7 +171,8 @@ export class TemplateController {
 
   @action()
   async create(input: CreateTemplateDto) {
-    const template = await this.templates.createTemplate(input.name, emptyDocument())
+    const doc = documentForPreset(input.preset)
+    const template = await this.templates.createTemplate(input.name, doc)
     return redirect(`/templates/${template.id}`)
   }
 

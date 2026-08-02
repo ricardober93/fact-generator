@@ -1,5 +1,12 @@
 import type { VNode } from '@wabot-dev/framework/ui'
-import type { IBlock, IDocument, IPropValue, ITheme } from '../document'
+import {
+  BAND_NAMES,
+  type IBandName,
+  type IBlock,
+  type IDocument,
+  type IPropValue,
+  type ITheme,
+} from '../document'
 import type { IResolved } from '../bind'
 import type { IFormatOptions } from '../format'
 
@@ -19,6 +26,7 @@ export type IPropType =
   | 'token'
   | 'asset'
   | 'text'
+  | 'cells'
   | `enum:${string}`
 
 export type IBlockSchema = Record<string, IPropType>
@@ -37,6 +45,19 @@ export interface IBlockDefinition {
   defaults: Omit<IBlock, 'id' | 'kind'>
   render: IBlockRender
   Inspector?: IBlockInspector
+  bands?: IBandName[]
+  renderHeader?: IBlockRender
+}
+
+function assertBands(kind: string, bands: IBandName[]): void {
+  if (bands.length === 0) {
+    throw new Error(`defineBlock(${kind}): bands must not be empty`)
+  }
+  for (const band of bands) {
+    if (!(BAND_NAMES as readonly string[]).includes(band)) {
+      throw new Error(`defineBlock(${kind}): unknown band "${band}"`)
+    }
+  }
 }
 
 export function defineBlock(definition: IBlockDefinition): IBlockDefinition {
@@ -49,6 +70,7 @@ export function defineBlock(definition: IBlockDefinition): IBlockDefinition {
   if (!definition.defaults) {
     throw new Error(`defineBlock(${definition.kind}) requires defaults`)
   }
+  if (definition.bands) assertBands(definition.kind, definition.bands)
   for (const propName of Object.keys(definition.defaults.props)) {
     if (!(propName in definition.schema)) {
       throw new Error(

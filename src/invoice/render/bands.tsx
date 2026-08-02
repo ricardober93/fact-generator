@@ -25,15 +25,43 @@ export function renderBlock(block: IBlock, ctx: IRenderContext): VNode {
   )
 }
 
-export function renderBand(band: IBand, name: IBandName, ctx: IRenderContext): VNode {
+export function renderBand(
+  band: IBand,
+  name: IBandName,
+  ctx: IRenderContext,
+  extra: VNode[] = [],
+): VNode {
   return (
     <div
       data-band={name}
       style={{ position: 'relative', height: `${band.heightMm}mm`, width: '100%' }}
     >
       {band.blocks.map((block) => renderBlock(block, ctx))}
+      {extra}
     </div>
   )
+}
+
+export function projectedHeaders(doc: IDocument, ctx: IRenderContext): VNode[] {
+  return doc.bands.detail.blocks.flatMap((block) => {
+    const renderHeader = findBlockDefinition(block.kind)?.renderHeader
+    if (!renderHeader) return []
+    return [
+      <div
+        key={block.id}
+        data-block-header={block.id}
+        style={{
+          position: 'absolute',
+          left: `${block.xMm}mm`,
+          top: 0,
+          width: `${block.widthMm}mm`,
+          height: '100%',
+        }}
+      >
+        {renderHeader(block, ctx)}
+      </div>,
+    ]
+  })
 }
 
 export function renderDetailTable(
@@ -41,12 +69,18 @@ export function renderDetailTable(
   items: unknown[],
   contextFor: (item: unknown | undefined) => IRenderContext,
 ): VNode {
+  const headerCtx = contextFor(undefined)
   return (
     <table style={{ width: '100%', borderCollapse: 'collapse' }}>
       <thead>
         <tr>
           <td style={{ padding: 0 }}>
-            {renderBand(doc.bands.detailHeader, 'detailHeader', contextFor(undefined))}
+            {renderBand(
+              doc.bands.detailHeader,
+              'detailHeader',
+              headerCtx,
+              projectedHeaders(doc, headerCtx),
+            )}
           </td>
         </tr>
       </thead>

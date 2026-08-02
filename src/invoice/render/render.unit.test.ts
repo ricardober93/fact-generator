@@ -4,6 +4,7 @@ import test from 'node:test'
 import { applyDefaults } from './blocks/registry'
 import { emptyDocument } from './document'
 import { MissingDataError, render } from './render'
+import { validateDocument } from './validateDocument'
 import { invoiceDocumentFixture } from './__fixtures__/invoiceDocument'
 import { INVOICE_DATA, INVOICE_ITEMS, renderToHtml } from './__fixtures__/renderToHtml'
 
@@ -171,4 +172,54 @@ test('the golden invoice markup is unchanged', async () => {
   const html = await renderToHtml(render(fullInput()))
 
   assert.equal(html + '\n', expected)
+})
+
+function occurrences(html: string, needle: string): number {
+  return html.split(needle).length - 1
+}
+
+test('a detail block that provides a header projects it once inside the thead', async () => {
+  const html = await renderToHtml(render(fullInput()))
+  const thead = html.slice(html.indexOf('<thead>'), html.indexOf('</thead>'))
+
+  assert.equal(occurrences(html, 'data-block-header="items"'), 1)
+  assert.ok(thead.includes('data-block-header="items"'))
+  assert.ok(thead.includes('Descripción'))
+  assert.equal(occurrences(html, 'data-band="detail"'), INVOICE_ITEMS.length)
+})
+
+test('the projection shares the horizontal geometry of its block', async () => {
+  const doc = invoiceDocumentFixture()
+  doc.bands.detail.blocks[0] = { ...doc.bands.detail.blocks[0], xMm: 20, widthMm: 60 }
+
+  const html = await renderToHtml(render({ ...fullInput(), doc }))
+  const thead = html.slice(html.indexOf('<thead>'), html.indexOf('</thead>'))
+  const projection = thead.slice(thead.indexOf('data-block-header="items"'))
+
+  assert.match(projection, /left:20mm/)
+  assert.match(projection, /width:60mm/)
+})
+
+test('the projection never emits a second container with the same data-block', async () => {
+  const html = await renderToHtml(render(fullInput()))
+  const thead = html.slice(html.indexOf('<thead>'), html.indexOf('</thead>'))
+
+  assert.equal(thead.includes('data-block="items"'), false)
+  assert.equal(occurrences(html, 'data-block="items"'), INVOICE_ITEMS.length)
+})
+
+test('a detail band without headers projects nothing', async () => {
+  const doc = invoiceDocumentFixture()
+  doc.bands.detail.blocks = [
+    applyDefaults('text', {
+      id: 'plain',
+      widthMm: 40,
+      heightMm: 6,
+      props: { content: { fragments: [] } },
+    }),
+  ]
+
+  const html = await renderToHtml(render({ ...fullInput(), doc }))
+
+  assert.equal(html.includes('data-block-header'), false)
 })

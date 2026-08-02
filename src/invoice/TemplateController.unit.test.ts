@@ -12,6 +12,7 @@ import { TemplateRepository } from './models/template/TemplateRepository'
 import { emptyDocument, type IDocument } from './render/document'
 import { invoiceDocumentFixture } from './render/__fixtures__/invoiceDocument'
 import { addBlock, setBlockProp } from './ui/documentEdits'
+import { TEMPLATE_PRESETS } from './templates/presets'
 
 useMemoryRepositories()
 container.register(Locker, { useToken: InMemoryLocker })
@@ -164,4 +165,33 @@ test('no view of the editor is ever a static page', () => {
   for (const info of views) {
     assert.equal(info.config?.static, undefined)
   }
+})
+
+test('creating a template from a preset stores that design, not a blank page', async () => {
+  const preset = TEMPLATE_PRESETS[0]
+
+  await harness.action('/templates/_action/create', { name: 'Con diseño', preset: preset.id })
+
+  const stored = await templates().findOneByName('Con diseño')
+  assert.ok(stored)
+  assert.deepEqual(stored.doc, preset.build())
+  assert.ok(stored.doc.bands.header.blocks.length > 0)
+})
+
+test('creating a template from an unknown preset is rejected', async () => {
+  const response = await harness.action('/templates/_action/create', {
+    name: 'Inventada',
+    preset: 'no-existe',
+  })
+
+  assert.equal(response.status, 400)
+  assert.equal(await templates().findOneByName('Inventada'), null)
+})
+
+test('creating a template without a preset still starts blank', async () => {
+  await harness.action('/templates/_action/create', { name: 'En blanco' })
+
+  const stored = await templates().findOneByName('En blanco')
+  assert.ok(stored)
+  assert.deepEqual(stored.doc, emptyDocument())
 })

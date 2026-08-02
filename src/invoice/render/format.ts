@@ -23,9 +23,14 @@ function asNumber(value: IResolved): number | null {
   return null
 }
 
+const DATE_ONLY = /^\d{4}-\d{2}-\d{2}$/
+
 function asDate(value: IResolved): Date | null {
   if (typeof value !== 'string' && typeof value !== 'number') return null
-  const date = new Date(value)
+  const date =
+    typeof value === 'string' && DATE_ONLY.test(value)
+      ? new Date(`${value}T00:00:00`)
+      : new Date(value)
   return Number.isNaN(date.getTime()) ? null : date
 }
 

@@ -8,28 +8,27 @@ import {
 } from '@wabot-dev/framework/ui'
 import type { IDocument } from '../render/document'
 import { Canvas } from './Canvas'
+import { duplicateBlocks, moveBlocks, copiedBlocks, pasteBlocks } from './arrange'
 import { Inspector } from './Inspector'
+import { LayersPanel } from './LayersPanel'
 import { Palette } from './Palette'
-import { removeBlock } from './documentEdits'
-import { createEditorStore, type IEditorStore, type ISaveState } from './editorStore'
+import { removeBlocks } from './documentEdits'
+import { createEditorStore, type IEditorStore, type ISelection } from './editorStore'
+import { Toolbar } from './EditorToolbar'
 import type { IAssetChoice } from './propertyEditors'
+import { ThemePanel } from './ThemePanel'
 
 const SAVE_URL = actionUrl('/templates', 'save')
 
-const BADGE_BY_STATE: Record<ISaveState, string> = {
-  idle: '',
-  saving: 'badge badge-info',
-  saved: 'badge badge-success',
-  conflict: 'badge badge-warning',
-  error: 'badge badge-danger',
-}
+const NUDGE_MM = 1
 
-const DOT_BY_STATE: Record<ISaveState, string> = {
-  idle: '',
-  saving: 'dot dot-info dot-pulse',
-  saved: 'dot dot-success',
-  conflict: 'dot dot-warning',
-  error: 'dot dot-danger',
+const BIG_NUDGE_MM = 10
+
+const ARROWS: Record<string, { xMm: number; yMm: number }> = {
+  ArrowLeft: { xMm: -1, yMm: 0 },
+  ArrowRight: { xMm: 1, yMm: 0 },
+  ArrowUp: { xMm: 0, yMm: -1 },
+  ArrowDown: { xMm: 0, yMm: 1 },
 }
 
 export interface IEditorProps {
@@ -46,73 +45,80 @@ function isTypingTarget(target: EventTarget | null): boolean {
   return ['INPUT', 'TEXTAREA', 'SELECT'].includes(element.tagName) || element.isContentEditable
 }
 
+function handleHistory(store: IEditorStore, event: KeyboardEvent): boolean {
+  if (!(event.metaKey || event.ctrlKey) || event.key.toLowerCase() !== 'z') return false
+  event.preventDefault()
+  if (event.shiftKey) store.redo()
+  else store.undo()
+  return true
+}
+
+function handleClipboard(
+  store: IEditorStore,
+  selection: ISelection,
+  event: KeyboardEvent,
+): boolean {
+  const key = event.key.toLowerCase()
+  if (!(event.metaKey || event.ctrlKey) || !['c', 'v', 'd'].includes(key)) return false
+  event.preventDefault()
+  if (key === 'c') {
+    store.clipboard.value = copiedBlocks(store.doc.value, selection.band, selection.blockIds)
+    return true
+  }
+  const result =
+    key === 'd'
+      ? duplicateBlocks(store.doc.value, selection.band, selection.blockIds)
+      : pasteBlocks(store.doc.value, selection.band, store.clipboard.value)
+  if (result.blockIds.length === 0) return true
+  store.commit(result.doc)
+  store.select(selection.band, result.blockIds)
+  return true
+}
+
+function handleSelectionKeys(
+  store: IEditorStore,
+  selection: ISelection,
+  event: KeyboardEvent,
+): void {
+  if (event.key === 'Escape') {
+    store.clearSelection()
+    return
+  }
+  if (handleClipboard(store, selection, event)) return
+  if (selection.blockIds.length === 0) return
+  if (event.key === 'Delete' || event.key === 'Backspace') {
+    event.preventDefault()
+    store.commit(removeBlocks(store.doc.value, selection.band, selection.blockIds))
+    store.select(selection.band, [])
+    return
+  }
+  const arrow = ARROWS[event.key]
+  if (!arrow) return
+  event.preventDefault()
+  const step = event.shiftKey ? BIG_NUDGE_MM : NUDGE_MM
+  store.commit(
+    moveBlocks(
+      store.doc.value,
+      selection.band,
+      selection.blockIds,
+      arrow.xMm * step,
+      arrow.yMm * step,
+    ),
+  )
+}
+
 function useShortcuts(store: IEditorStore): void {
   useEffect(() => {
     function onKeyDown(event: KeyboardEvent): void {
       if (isTypingTarget(event.target)) return
-      const meta = event.metaKey || event.ctrlKey
-      if (meta && event.key.toLowerCase() === 'z') {
-        event.preventDefault()
-        if (event.shiftKey) store.redo()
-        else store.undo()
-        return
-      }
-      if (event.key !== 'Delete' && event.key !== 'Backspace') return
-      const band = store.selectedBand.value
-      const blockId = store.selectedBlockId.value
-      if (!band || !blockId) return
-      event.preventDefault()
-      store.commit(removeBlock(store.doc.value, band, blockId))
-      store.select(band, null)
+      if (handleHistory(store, event)) return
+      const selection = store.selection.value
+      if (!selection) return
+      handleSelectionKeys(store, selection, event)
     }
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
   }, [store])
-}
-
-function SaveStatus({ store }: { store: IEditorStore }): VNode {
-  const status = store.status.value
-  const dot = DOT_BY_STATE[status.state]
-  return (
-    <span class={BADGE_BY_STATE[status.state]} data-save-state={status.state}>
-      {dot ? <span class={dot} /> : null}
-      {status.message}
-    </span>
-  )
-}
-
-function Toolbar({ store, onSave }: { store: IEditorStore; onSave: () => void }): VNode {
-  return (
-    <header class="wb-toolbar">
-      <a class="btn btn-ghost btn-sm" href="/templates">
-        Plantillas
-      </a>
-      <button
-        type="button"
-        class="btn btn-secondary btn-sm"
-        data-action="undo"
-        onClick={() => store.undo()}
-      >
-        Deshacer
-      </button>
-      <button
-        type="button"
-        class="btn btn-secondary btn-sm"
-        data-action="redo"
-        onClick={() => store.redo()}
-      >
-        Rehacer
-      </button>
-      <span class="wb-toolbar-gap" />
-      <span class="badge" data-rev={store.rev.value}>
-        rev {store.rev.value}
-      </span>
-      <SaveStatus store={store} />
-      <button type="button" class="btn btn-sm" data-action="save" onClick={onSave}>
-        Guardar
-      </button>
-    </header>
-  )
 }
 
 function Editor(props: IEditorProps): VNode {
@@ -146,14 +152,16 @@ function Editor(props: IEditorProps): VNode {
     <div class="wb-shell">
       <Toolbar store={store} onSave={save} />
       <div class="wb-body">
-        <div class="wb-panel">
+        <div class="wb-panel stack">
+          <LayersPanel store={store} />
           <Palette store={store} />
         </div>
         <div class="wb-stage">
           <Canvas store={store} assets={props.assetUris} />
         </div>
-        <div class="wb-panel">
+        <div class="wb-panel stack">
           <Inspector store={store} assets={props.assets} />
+          <ThemePanel store={store} />
         </div>
       </div>
     </div>

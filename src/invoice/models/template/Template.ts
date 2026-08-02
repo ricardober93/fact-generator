@@ -1,4 +1,5 @@
 import { Entity, type IEntityData } from '@wabot-dev/framework'
+import { withBlockDefaults } from '../../render/blocks/registry'
 import type { IDocument } from '../../render/document'
 
 export interface ITemplateData extends IEntityData {
@@ -17,7 +18,7 @@ export class Template extends Entity<ITemplateData> {
   }
 
   get doc(): IDocument {
-    return this.data.doc as IDocument
+    return withBlockDefaults(this.data.doc as IDocument)
   }
 
   applyRevision(doc: IDocument): void {

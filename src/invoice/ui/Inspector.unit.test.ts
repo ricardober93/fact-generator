@@ -1,52 +1,28 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { blockKinds, findBlockDefinition } from '../render/blocks/registry'
+import { findBlockDefinition } from '../render/blocks/registry'
 import { emptyDocument, type IDocument, type ITextContent } from '../render/document'
 import { render } from '../render/render'
 import { sampleDataFor } from '../render/sampleData'
 import { invoiceDocumentFixture } from '../render/__fixtures__/invoiceDocument'
 import { renderToHtml } from '../render/__fixtures__/renderToHtml'
 import { Inspector } from './Inspector'
-import { Palette } from './Palette'
-import { applyPropChange, addBlock, findBlock, setThemeToken } from './documentEdits'
+import { movedCell } from './CellsEditor'
+import { applyPropChange, addBlock, findBlock, setBandHeight, setThemeToken } from './documentEdits'
+import { h } from '@wabot-dev/framework/ui'
 import { createEditorStore, type IEditorStore } from './editorStore'
 
 function storeWith(doc: IDocument = invoiceDocumentFixture()): IEditorStore {
   return createEditorStore({ templateId: 't1', doc, rev: 1 })
 }
 
-async function paletteHtml(store: IEditorStore): Promise<string> {
-  return renderToHtml(Palette({ store }))
-}
-
 async function inspectorHtml(store: IEditorStore, assets = [{ id: 'a1', label: 'logo.png' }]) {
-  return renderToHtml(Inspector({ store, assets }))
+  return renderToHtml(h(Inspector, { store, assets }))
 }
-
-test('the palette offers exactly the kinds the registry declares', async () => {
-  const html = await paletteHtml(storeWith())
-
-  for (const kind of blockKinds()) {
-    assert.ok(html.includes(`data-palette-kind="${kind}"`), `${kind} is missing`)
-  }
-  const offered = html.match(/data-palette-kind="[^"]+"/g) ?? []
-  assert.equal(offered.length, blockKinds().length)
-})
-
-test('without a selected band the palette cannot insert', async () => {
-  const store = storeWith()
-
-  const idle = await paletteHtml(store)
-  store.select('header', null)
-  const ready = await paletteHtml(store)
-
-  assert.match(idle, /disabled/)
-  assert.doesNotMatch(ready, /disabled/)
-})
 
 test('a block without its own Inspector gets one editor per schema property', async () => {
   const store = storeWith()
-  store.select('header', 'issuer')
+  store.select('header', ['issuer'])
 
   const html = await inspectorHtml(store)
 
@@ -60,7 +36,7 @@ test('a block without its own Inspector gets one editor per schema property', as
 
 test('an enumerated property offers only its declared values', async () => {
   const store = storeWith()
-  store.select('header', 'issuer')
+  store.select('header', ['issuer'])
 
   const html = await inspectorHtml(store)
 
@@ -72,7 +48,7 @@ test('an enumerated property offers only its declared values', async () => {
 
 test('a token property offers the theme tokens as references', async () => {
   const store = storeWith()
-  store.select('header', 'issuer')
+  store.select('header', ['issuer'])
 
   const html = await inspectorHtml(store)
 
@@ -107,7 +83,7 @@ test('changing one property leaves every other property and block alone', () => 
 
 test('the asset editor points at the theme, and the block keeps its token', async () => {
   const store = storeWith()
-  store.select('header', 'logo')
+  store.select('header', ['logo'])
 
   const html = await inspectorHtml(store, [{ id: 'asset-1', label: 'marca.png' }])
 
@@ -201,4 +177,56 @@ test('markup typed into a literal is painted as text, not as elements', async ()
   assert.doesNotMatch(html, /<\/script/)
   assert.ok(html.includes('&lt;script'))
   assert.ok(html.includes('alert(1)'))
+})
+
+test('a cells property gets its editor without the definition writing one', async () => {
+  const store = storeWith()
+  store.select('detail', ['items'])
+
+  const html = await inspectorHtml(store)
+
+  assert.match(html, /data-cell-label="0"/)
+  assert.match(html, /data-cell-path="0"/)
+  assert.match(html, /data-cell-width="0"/)
+  assert.match(html, /data-add-cell="true"/)
+  assert.equal(findBlockDefinition('table')?.Inspector, undefined)
+})
+
+test('the cells editor shows the widths it uses against the width of the block', async () => {
+  const store = storeWith()
+  store.select('detail', ['items'])
+
+  const html = await inspectorHtml(store)
+
+  assert.match(html, /data-cells-width="180"/)
+})
+
+test('reordering cells moves one and leaves the others in order', () => {
+  const cells = [
+    { label: 'a', path: '', widthMm: 10, align: 'left' as const },
+    { label: 'b', path: '', widthMm: 10, align: 'left' as const },
+    { label: 'c', path: '', widthMm: 10, align: 'left' as const },
+  ]
+
+  assert.deepEqual(
+    movedCell(cells, 2, 0).map((cell) => cell.label),
+    ['c', 'a', 'b'],
+  )
+  assert.equal(movedCell(cells, 0, -1), cells)
+  assert.equal(movedCell(cells, 2, 3), cells)
+})
+
+test('binding a cell to a new path declares it in the schema as optional', () => {
+  const doc = invoiceDocumentFixture()
+  const cells = [{ label: 'IVA', path: 'item.iva', widthMm: 20, align: 'right' as const }]
+
+  const next = applyPropChange(doc, 'detail', 'items', 'cells', cells)
+  const declared = next.dataSchema.find((entry) => entry.path === 'item.iva')
+
+  assert.ok(declared)
+  assert.equal(declared.required, false)
+  assert.equal(
+    doc.dataSchema.some((entry) => entry.path === 'item.iva'),
+    false,
+  )
 })

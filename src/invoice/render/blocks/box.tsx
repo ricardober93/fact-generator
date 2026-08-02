@@ -8,6 +8,7 @@ export default defineBlock({
     border: 'token',
     borderWidthMm: 'number',
     radiusMm: 'number',
+    rotationDeg: 'number',
   },
   defaults: {
     xMm: 0,
@@ -19,6 +20,7 @@ export default defineBlock({
       border: '@border',
       borderWidthMm: 0.2,
       radiusMm: 0,
+      rotationDeg: 0,
     },
   },
   render(block) {
@@ -30,6 +32,7 @@ export default defineBlock({
           background: tokenVar(block.props.fill),
           border: `${block.props.borderWidthMm}mm solid ${tokenVar(block.props.border)}`,
           borderRadius: `${block.props.radiusMm}mm`,
+          transform: `rotate(${block.props.rotationDeg}deg)`,
         }}
       />
     )

@@ -137,3 +137,99 @@ test('every definition now carries a render function', () => {
     assert.equal(typeof findBlockDefinition(kind)!.render, 'function', `${kind} has no render`)
   }
 })
+
+const TABLE_CELLS = [
+  { label: 'Concepto', path: 'item.descripcion', widthMm: 100, align: 'left' as const },
+  {
+    label: 'Total',
+    path: 'item.total',
+    format: 'currency',
+    widthMm: 30,
+    align: 'right' as const,
+  },
+]
+
+test('a table paints one cell per column with its formatted value', async () => {
+  const block = applyDefaults('table', { props: { cells: TABLE_CELLS } })
+  const resolve = (path: string) => (path === 'item.total' ? 63 : 'Maquetación')
+
+  const html = await renderToHtml(renderBlock(block, ctxWith({ resolve })))
+
+  assert.match(html, /Maquetación/)
+  assert.match(html, /63,00/)
+  assert.match(html, /100mm/)
+  assert.match(html, /30mm/)
+})
+
+test('a table header paints the literal labels, never as markup', async () => {
+  const cells = [{ label: '<b>Total</b>', path: '', widthMm: 30, align: 'right' as const }]
+  const block = applyDefaults('table', { props: { cells } })
+  const renderHeader = findBlockDefinition('table')!.renderHeader!
+
+  const html = await renderToHtml(renderHeader(block, CTX))
+
+  assert.match(html, /&lt;b/)
+  assert.match(html, /Total/)
+  assert.equal(html.includes('<b>'), false)
+})
+
+test('a list stacks each label with the value of its path', async () => {
+  const cells = [{ label: 'Subtotal', path: 'factura.base', widthMm: 30, align: 'right' as const }]
+  const block = applyDefaults('list', { props: { cells } })
+
+  const html = await renderToHtml(renderBlock(block, ctxWith({ resolve: () => 300 })))
+
+  assert.match(html, /Subtotal/)
+  assert.match(html, /300/)
+})
+
+test('a cell whose path does not resolve paints empty without failing', async () => {
+  const block = applyDefaults('table', { props: { cells: TABLE_CELLS } })
+
+  const html = await renderToHtml(renderBlock(block, CTX))
+
+  assert.ok(html.length > 0)
+  assert.equal(html.includes('undefined'), false)
+  assert.equal(html.includes('Symbol'), false)
+})
+
+test('a rotated box carries its rotation into the css', async () => {
+  const block = applyDefaults('box', { props: { rotationDeg: 45 } })
+
+  const html = await renderToHtml(renderBlock(block, CTX))
+
+  assert.match(html, /transform:\s*rotate\(45deg\)/)
+})
+
+test('a new box is not rotated and rotating one leaves its geometry alone', async () => {
+  const fresh = applyDefaults('box')
+  const rotated = applyDefaults('box', { props: { rotationDeg: 45 } })
+
+  assert.equal(fresh.props.rotationDeg, 0)
+  assert.deepEqual(
+    [rotated.xMm, rotated.yMm, rotated.widthMm, rotated.heightMm],
+    [fresh.xMm, fresh.yMm, fresh.widthMm, fresh.heightMm],
+  )
+  const html = await renderToHtml(renderBlock(rotated, CTX))
+  assert.equal(html.includes('transform-origin'), false)
+})
+
+test('a new table paints its header with the same token as its rows', () => {
+  const block = applyDefaults('table')
+
+  assert.equal(block.props.headerColor, block.props.color)
+})
+
+test('a table header paints with its own colour, the rows with theirs', async () => {
+  const block = applyDefaults('table', {
+    props: { cells: TABLE_CELLS, color: '@text', headerColor: '@onAccent' },
+  })
+  const definition = findBlockDefinition('table')!
+
+  const header = await renderToHtml(definition.renderHeader!(block, CTX))
+  const row = await renderToHtml(definition.render(block, CTX))
+
+  assert.match(header, /color:\s*var\(--onAccent\)/)
+  assert.match(row, /color:\s*var\(--text\)/)
+  assert.equal(row.includes('--onAccent'), false)
+})

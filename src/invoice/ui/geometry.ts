@@ -56,17 +56,49 @@ export function movedRect(
   return clampRect(moved, band)
 }
 
+export const HANDLES = ['nw', 'n', 'ne', 'e', 'se', 's', 'sw', 'w'] as const
+
+export type IHandle = (typeof HANDLES)[number]
+
+type IMovingEdge = 'start' | 'end' | 'none'
+
+function movingEdge(handle: IHandle, startMark: string, endMark: string): IMovingEdge {
+  if (handle.includes(startMark)) return 'start'
+  if (handle.includes(endMark)) return 'end'
+  return 'none'
+}
+
+function resizedAxis(
+  positionMm: number,
+  sizeMm: number,
+  deltaMm: number,
+  edge: IMovingEdge,
+): { positionMm: number; sizeMm: number } {
+  if (edge === 'none') return { positionMm, sizeMm }
+  if (edge === 'end') return { positionMm, sizeMm: Math.max(MIN_SIZE_MM, sizeMm + deltaMm) }
+  const nextSizeMm = Math.max(MIN_SIZE_MM, sizeMm - deltaMm)
+  return { positionMm: positionMm + sizeMm - nextSizeMm, sizeMm: nextSizeMm }
+}
+
 export function resizedRect(
   start: IRect,
   deltaXPx: number,
   deltaYPx: number,
   pxPerMm: number,
   band: IBandBox,
+  handle: IHandle = 'se',
 ): IRect {
-  const resized = {
-    ...start,
-    widthMm: Math.max(MIN_SIZE_MM, snapMm(start.widthMm + pxToMm(deltaXPx, pxPerMm))),
-    heightMm: Math.max(MIN_SIZE_MM, snapMm(start.heightMm + pxToMm(deltaYPx, pxPerMm))),
-  }
-  return clampRect(resized, band)
+  const deltaXMm = snapMm(pxToMm(deltaXPx, pxPerMm))
+  const deltaYMm = snapMm(pxToMm(deltaYPx, pxPerMm))
+  const horizontal = resizedAxis(start.xMm, start.widthMm, deltaXMm, movingEdge(handle, 'w', 'e'))
+  const vertical = resizedAxis(start.yMm, start.heightMm, deltaYMm, movingEdge(handle, 'n', 's'))
+  return clampRect(
+    {
+      xMm: horizontal.positionMm,
+      yMm: vertical.positionMm,
+      widthMm: horizontal.sizeMm,
+      heightMm: vertical.sizeMm,
+    },
+    band,
+  )
 }

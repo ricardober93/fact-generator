@@ -1,12 +1,15 @@
 import type { VNode } from '@wabot-dev/framework/ui'
 import { enumValues, type IPropType } from '../render/blocks/defineBlock'
 import {
+  isCellList,
   isTokenReference,
   tokenName,
+  type ICell,
   type IDocument,
   type IPropValue,
   type ITextContent,
 } from '../render/document'
+import { CellsEditor } from './CellsEditor'
 import { TextContentEditor } from './TextContentEditor'
 
 export interface IPropertyEditorProps {
@@ -16,6 +19,7 @@ export interface IPropertyEditorProps {
   value: IPropValue
   doc: IDocument
   assets: IAssetChoice[]
+  widthMm: number
   onChange: (value: IPropValue) => void
   onThemeChange: (token: string, value: string) => void
 }
@@ -128,7 +132,15 @@ function TextEditor({ value, doc, onChange }: IPropertyEditorProps): VNode {
   return <TextContentEditor content={content} doc={doc} onChange={onChange} />
 }
 
+function CellsPropertyEditor({ value, doc, widthMm, onChange }: IPropertyEditorProps): VNode {
+  const cells: ICell[] = isCellList(value) ? value : []
+  return (
+    <CellsEditor cells={cells} doc={doc} widthMm={widthMm} onChange={(next) => onChange(next)} />
+  )
+}
+
 export function PropertyEditor(props: IPropertyEditorProps): VNode {
+  if (props.type === 'cells') return <CellsPropertyEditor {...props} />
   if (props.type === 'number') return <NumberEditor {...props} />
   if (props.type === 'boolean') return <BooleanEditor {...props} />
   if (props.type === 'token') return <TokenEditor {...props} />

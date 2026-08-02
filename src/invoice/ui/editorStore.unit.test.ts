@@ -92,15 +92,35 @@ test('undo restores a snapshot that later edits cannot reach', () => {
   assert.deepEqual(store.doc.value, before)
 })
 
-test('selecting a block requires a band, and clearing the band clears the block', () => {
+test('a selection never mixes bands', () => {
   const store = storeWith()
 
-  store.select('header', 'abc')
-  assert.equal(store.selectedBlockId.value, 'abc')
+  store.select('header', ['abc'])
+  store.toggleInSelection('header', 'def')
+  assert.deepEqual(store.selection.value, { band: 'header', blockIds: ['abc', 'def'] })
 
-  store.select(null, 'abc')
-  assert.equal(store.selectedBand.value, null)
-  assert.equal(store.selectedBlockId.value, null)
+  store.toggleInSelection('header', 'abc')
+  assert.deepEqual(store.selection.value?.blockIds, ['def'])
+
+  store.toggleInSelection('detail', 'xyz')
+  assert.deepEqual(store.selection.value, { band: 'detail', blockIds: ['xyz'] })
+
+  store.clearSelection()
+  assert.equal(store.selection.value, null)
+})
+
+test('the clipboard and the zoom live outside the document', () => {
+  const store = storeWith()
+  const before = structuredClone(store.doc.value)
+
+  store.clipboard.value = [store.doc.value.bands.header.blocks[0]]
+  store.setZoom(2)
+  store.setZoom(99)
+
+  assert.equal(store.zoom.value, 4)
+  assert.deepEqual(store.doc.value, before)
+  assert.equal(store.canUndo(), false)
+  assert.throws(() => store.setZoom(Number.NaN), /finite/)
 })
 
 test('the store refuses to start without a template, document or revision', () => {

@@ -1,159 +1,28 @@
 import {
   BAND_NAMES,
   bindingPaths,
-  isTokenReference,
-  tokenName,
   usableWidthMm,
   type IBand,
   type IBandName,
   type IBlock,
-  type IDataType,
   type IDocument,
   type IPage,
   type ITheme,
 } from './document'
-import { enumValues, type IPropType } from './blocks/defineBlock'
-import { findBlockDefinition } from './blocks/registry'
+import { acceptsBand, findBlockDefinition } from './blocks/registry'
+import { isPlainObject, isPositiveNumber, validateProp, type IDocumentIssue } from './validateProps'
+import {
+  validateDataSchema,
+  validatePage,
+  validateParams,
+  validateTheme,
+} from './validateDeclarations'
 
-export interface IDocumentIssue {
-  path: string
-  message: string
-}
-
-const PAGE_MEASURES: (keyof IPage)[] = [
-  'widthMm',
-  'heightMm',
-  'marginTopMm',
-  'marginRightMm',
-  'marginBottomMm',
-  'marginLeftMm',
-]
-
-function isPlainObject(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value)
-}
-
-function isPositiveNumber(value: unknown): boolean {
-  return typeof value === 'number' && Number.isFinite(value) && value > 0
-}
-
-function validatePage(page: unknown, issues: IDocumentIssue[]): void {
-  if (!isPlainObject(page)) {
-    issues.push({ path: 'page', message: 'page must be an object' })
-    return
-  }
-  for (const measure of PAGE_MEASURES) {
-    const value = page[measure]
-    if (typeof value !== 'number' || !Number.isFinite(value)) {
-      issues.push({ path: `page.${measure}`, message: 'must be a finite number in mm' })
-      continue
-    }
-    const mustBePositive = measure === 'widthMm' || measure === 'heightMm'
-    if (mustBePositive && value <= 0) {
-      issues.push({ path: `page.${measure}`, message: 'must be greater than zero' })
-    }
-    if (!mustBePositive && value < 0) {
-      issues.push({ path: `page.${measure}`, message: 'must not be negative' })
-    }
-  }
-}
-
-function validateTheme(theme: unknown, issues: IDocumentIssue[]): void {
-  if (!isPlainObject(theme)) {
-    issues.push({ path: 'theme', message: 'theme must be an object' })
-    return
-  }
-  for (const [token, value] of Object.entries(theme)) {
-    if (typeof value !== 'string' && typeof value !== 'number') {
-      issues.push({ path: `theme.${token}`, message: 'token value must be a string or a number' })
-    }
-  }
-}
-
-function validateParams(params: unknown, theme: ITheme, issues: IDocumentIssue[]): void {
-  if (!Array.isArray(params)) {
-    issues.push({ path: 'params', message: 'params must be an array' })
-    return
-  }
-  params.forEach((param, index) => {
-    const path = `params[${index}]`
-    if (!isPlainObject(param)) {
-      issues.push({ path, message: 'param declaration must be an object' })
-      return
-    }
-    if (typeof param.name !== 'string' || param.name.length === 0) {
-      issues.push({ path: `${path}.name`, message: 'must be a non-empty string' })
-    }
-    if (typeof param.token !== 'string' || !(param.token in theme)) {
-      issues.push({ path: `${path}.token`, message: 'must reference a token declared in theme' })
-    }
-    if (param.type === 'enum' && !Array.isArray(param.allowedValues)) {
-      issues.push({ path: `${path}.allowedValues`, message: 'enum params require allowedValues' })
-    }
-  })
-}
-
-function validateTokenProp(
-  value: unknown,
-  path: string,
-  theme: ITheme,
-  issues: IDocumentIssue[],
-): void {
-  if (!isTokenReference(value)) {
-    issues.push({ path, message: 'must be a token reference starting with "@", not a literal' })
-    return
-  }
-  if (!(tokenName(value) in theme)) {
-    issues.push({ path, message: `token "${tokenName(value)}" is not declared in theme` })
-  }
-}
-
-function validateTextProp(value: unknown, path: string, issues: IDocumentIssue[]): void {
-  if (!isPlainObject(value) || !Array.isArray(value.fragments)) {
-    issues.push({ path, message: 'text content must be an object with a fragments array' })
-    return
-  }
-  value.fragments.forEach((fragment: unknown, index: number) => {
-    const fragmentPath = `${path}.fragments[${index}]`
-    if (!isPlainObject(fragment)) {
-      issues.push({ path: fragmentPath, message: 'fragment must be an object' })
-      return
-    }
-    if (fragment.type === 'literal' && typeof fragment.text === 'string') return
-    if (fragment.type === 'binding' && typeof fragment.path === 'string') return
-    issues.push({ path: fragmentPath, message: 'fragment must be a literal or a binding' })
-  })
-}
-
-function validateProp(
-  propType: IPropType,
-  value: unknown,
-  path: string,
-  theme: ITheme,
-  issues: IDocumentIssue[],
-): void {
-  if (propType === 'token' || propType === 'asset') {
-    validateTokenProp(value, path, theme, issues)
-    return
-  }
-  if (propType === 'text') {
-    validateTextProp(value, path, issues)
-    return
-  }
-  if (propType.startsWith('enum:')) {
-    const allowed = enumValues(propType)
-    if (typeof value !== 'string' || !allowed.includes(value)) {
-      issues.push({ path, message: `must be one of: ${allowed.join(', ')}` })
-    }
-    return
-  }
-  if (typeof value !== propType) {
-    issues.push({ path, message: `must be a ${propType}` })
-  }
-}
+export type { IDocumentIssue }
 
 function validateBlockProps(
   block: IBlock,
+  bandName: IBandName,
   path: string,
   theme: ITheme,
   issues: IDocumentIssue[],
@@ -162,6 +31,12 @@ function validateBlockProps(
   if (!definition) {
     issues.push({ path: `${path}.kind`, message: `unknown block kind "${block.kind}"` })
     return
+  }
+  if (!acceptsBand(definition, bandName)) {
+    issues.push({
+      path: `${path}.kind`,
+      message: `block kind "${block.kind}" is not allowed in band "${bandName}"`,
+    })
   }
   if (!isPlainObject(block.props)) {
     issues.push({ path: `${path}.props`, message: 'props must be an object' })
@@ -238,7 +113,7 @@ function validateBand(
       issues.push({ path: blockPath, message: 'block must be an object with a kind' })
       return
     }
-    validateBlockProps(block as unknown as IBlock, blockPath, theme, issues)
+    validateBlockProps(block as unknown as IBlock, bandName, blockPath, theme, issues)
     validateBlockGeometry(
       block as unknown as IBlock,
       band as unknown as IBand,
@@ -266,31 +141,6 @@ function validateBands(bands: unknown, page: IPage, theme: ITheme, issues: IDocu
     }
     validateBand(bandName, bands[bandName], page, theme, issues)
   }
-}
-
-const DATA_TYPES: IDataType[] = ['string', 'number', 'boolean', 'date']
-
-function validateDataSchema(dataSchema: unknown, issues: IDocumentIssue[]): void {
-  if (!Array.isArray(dataSchema)) {
-    issues.push({ path: 'dataSchema', message: 'dataSchema must be an array' })
-    return
-  }
-  dataSchema.forEach((entry, index) => {
-    const path = `dataSchema[${index}]`
-    if (!isPlainObject(entry)) {
-      issues.push({ path, message: 'data path declaration must be an object' })
-      return
-    }
-    if (typeof entry.path !== 'string' || entry.path.length === 0) {
-      issues.push({ path: `${path}.path`, message: 'must be a non-empty string' })
-    }
-    if (!DATA_TYPES.includes(entry.type as IDataType)) {
-      issues.push({ path: `${path}.type`, message: `must be one of: ${DATA_TYPES.join(', ')}` })
-    }
-    if (typeof entry.required !== 'boolean') {
-      issues.push({ path: `${path}.required`, message: 'must be a boolean' })
-    }
-  })
 }
 
 function validateDeclaredBindings(doc: IDocument, issues: IDocumentIssue[]): void {

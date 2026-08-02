@@ -84,3 +84,32 @@ test('the conversion is the plain ratio', () => {
   assert.equal(pxToMm(40, 4), 10)
   assert.equal(pxToMm(-40, 4), -10)
 })
+
+const BAND_BOX = { widthMm: 180, heightMm: 40 }
+
+test('a corner handle moves its own edges and leaves the opposite corner fixed', () => {
+  const start = { xMm: 20, yMm: 10, widthMm: 60, heightMm: 20 }
+
+  const next = resizedRect(start, 10, 5, 1, BAND_BOX, 'nw')
+
+  assert.deepEqual(next, { xMm: 30, yMm: 15, widthMm: 50, heightMm: 15 })
+  assert.equal(next.xMm + next.widthMm, start.xMm + start.widthMm)
+  assert.equal(next.yMm + next.heightMm, start.yMm + start.heightMm)
+})
+
+test('a side handle changes a single axis', () => {
+  const start = { xMm: 20, yMm: 10, widthMm: 60, heightMm: 20 }
+
+  const next = resizedRect(start, 10, 8, 1, BAND_BOX, 'e')
+
+  assert.deepEqual(next, { xMm: 20, yMm: 10, widthMm: 70, heightMm: 20 })
+})
+
+test('a handle dragged past its opposite edge stops at the minimum size', () => {
+  const start = { xMm: 20, yMm: 10, widthMm: 60, heightMm: 20 }
+
+  const next = resizedRect(start, 100, 0, 1, BAND_BOX, 'w')
+
+  assert.equal(next.widthMm, MIN_SIZE_MM)
+  assert.equal(next.xMm + next.widthMm, start.xMm + start.widthMm)
+})

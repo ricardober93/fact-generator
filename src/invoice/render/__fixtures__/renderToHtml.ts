@@ -9,7 +9,7 @@ export async function renderToHtml(node: unknown): Promise<string> {
 export const INVOICE_DATA = {
   emisor: { nombre: 'Acme S.L.', pie: 'Gracias por su confianza' },
   cliente: { nombre: 'Ana Pérez' },
-  factura: { numero: 'F-2026-014', total: 363 },
+  factura: { numero: 'F-2026-014', total: 363, base: 300, impuestos: 63 },
 }
 
 export const INVOICE_ITEMS = [

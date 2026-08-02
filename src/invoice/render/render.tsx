@@ -4,7 +4,7 @@ import { renderBand, renderDetailTable, renderPageFooter } from './bands'
 import { DETAIL_ITEM_ROOT, usableWidthMm, type IDocument } from './document'
 import type { IRenderContext } from './blocks/defineBlock'
 import { formatOptionsOf } from './format'
-import { pageCss, themeStyle } from './printCss'
+import { documentCss, pageCss, themeStyle } from './printCss'
 import { resolveTheme } from './theme'
 
 export interface IRenderInput {
@@ -13,6 +13,7 @@ export interface IRenderInput {
   items?: unknown[]
   params?: Record<string, unknown>
   assets?: Record<string, string>
+  pageRules?: boolean
 }
 
 export class MissingDataError extends Error {
@@ -57,7 +58,8 @@ export function render(input: IRenderInput): VNode {
         position: 'relative',
       }}
     >
-      <style>{pageCss(doc.page)}</style>
+      {input.pageRules === false ? null : <style>{pageCss(doc.page)}</style>}
+      {documentCss(doc.theme) ? <style>{documentCss(doc.theme)}</style> : null}
       {renderBand(doc.bands.header, 'header', ctx)}
       {renderDetailTable(doc, items, (item) => contextOf(input, item))}
       {renderBand(doc.bands.summary, 'summary', ctx)}

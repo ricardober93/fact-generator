@@ -8,9 +8,11 @@ import {
   declareDataPath,
   findBlock,
   removeBlock,
+  removeBlocks,
   setBandHeight,
   setBlockProp,
   setBlockRect,
+  setBlockRects,
 } from './documentEdits'
 
 test('every edit returns a new document and leaves the previous one intact', () => {
@@ -143,4 +145,42 @@ test('declaring a data path adds it as optional and leaves a known one untouched
     untouched.dataSchema.find((entry) => entry.path === 'factura.total'),
     before,
   )
+})
+
+test('a gesture writes the geometry of every block it moved', () => {
+  const doc = invoiceDocumentFixture()
+
+  const next = setBlockRects(doc, 'header', {
+    issuer: { xMm: 10, yMm: 2, widthMm: 80, heightMm: 8 },
+    customer: { xMm: 10, yMm: 26, widthMm: 100, heightMm: 6 },
+  })
+
+  assert.equal(findBlock(next, 'header', 'issuer')?.xMm, 10)
+  assert.equal(findBlock(next, 'header', 'customer')?.yMm, 26)
+  assert.equal(findBlock(next, 'header', 'logo')?.xMm, findBlock(doc, 'header', 'logo')?.xMm)
+  assert.equal(findBlock(doc, 'header', 'issuer')?.xMm, 50)
+})
+
+test('a rect written outside the band is brought back inside it', () => {
+  const doc = invoiceDocumentFixture()
+
+  const next = setBlockRects(doc, 'header', {
+    issuer: { xMm: 500, yMm: 900, widthMm: 80, heightMm: 8 },
+  })
+  const block = findBlock(next, 'header', 'issuer')!
+
+  assert.equal(block.xMm + block.widthMm, 180)
+  assert.equal(block.yMm + block.heightMm, doc.bands.header.heightMm)
+})
+
+test('deleting a selection removes every block in it and nothing else', () => {
+  const doc = invoiceDocumentFixture()
+
+  const next = removeBlocks(doc, 'header', ['issuer', 'customer'])
+
+  assert.deepEqual(
+    next.bands.header.blocks.map((block) => block.id),
+    ['logo', 'number'],
+  )
+  assert.equal(removeBlocks(doc, 'header', []), doc)
 })

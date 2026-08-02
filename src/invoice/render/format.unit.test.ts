@@ -70,3 +70,7 @@ test('an undeclared locale parameter is ignored', () => {
 
   assert.equal(options.locale, 'es-ES')
 })
+
+test('a date without a time is read in the local day, not shifted by the timezone', () => {
+  assert.equal(formatValue('2020-12-12', 'date', ES_EUR), '12/12/2020')
+})

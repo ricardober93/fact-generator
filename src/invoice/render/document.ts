@@ -46,7 +46,27 @@ export interface ITextContent {
   fragments: ITextFragment[]
 }
 
-export type IPropValue = string | number | boolean | ITextContent
+export const CELL_ALIGNS = ['left', 'center', 'right'] as const
+
+export type ICellAlign = (typeof CELL_ALIGNS)[number]
+
+export interface ICell {
+  label: string
+  path: string
+  format?: string
+  widthMm: number
+  align: ICellAlign
+}
+
+export type IPropValue = string | number | boolean | ITextContent | ICell[]
+
+export function isCellList(value: unknown): value is ICell[] {
+  return Array.isArray(value)
+}
+
+export function isTextContent(value: unknown): value is ITextContent {
+  return typeof value === 'object' && value !== null && 'fragments' in value
+}
 
 export interface IBlock {
   id: string
@@ -56,6 +76,7 @@ export interface IBlock {
   widthMm: number
   heightMm: number
   props: Record<string, IPropValue>
+  decorative?: boolean
 }
 
 export interface IBand {
@@ -157,15 +178,24 @@ export function emptyDocument(page: IPage = A4_PORTRAIT): IDocument {
   }
 }
 
+function collectPropPaths(value: IPropValue, paths: Set<string>): void {
+  if (isCellList(value)) {
+    for (const cell of value) {
+      if (cell && typeof cell.path === 'string' && cell.path) paths.add(cell.path)
+    }
+    return
+  }
+  if (!isTextContent(value)) return
+  for (const fragment of value.fragments) {
+    if (fragment.type === 'binding') paths.add(fragment.path)
+  }
+}
+
 export function bindingPaths(doc: IDocument): string[] {
   const paths = new Set<string>()
   for (const band of Object.values(doc.bands)) {
     for (const block of band.blocks) {
-      const content = block.props.content
-      if (typeof content !== 'object' || !('fragments' in content)) continue
-      for (const fragment of content.fragments) {
-        if (fragment.type === 'binding') paths.add(fragment.path)
-      }
+      for (const value of Object.values(block.props)) collectPropPaths(value, paths)
     }
   }
   return [...paths]

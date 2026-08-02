@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { A4_PORTRAIT, DEFAULT_THEME } from './document'
-import { pageCss, themeStyle, tokenVariable } from './printCss'
+import { documentCss, pageCss, themeStyle, tokenVariable } from './printCss'
 
 test('every theme token becomes a custom property', () => {
   const style = themeStyle(DEFAULT_THEME)
@@ -38,4 +38,34 @@ test('the printed footer spans the useful column, not the paper', () => {
 
   assert.match(css, /\.wb-page-footer \{[^}]*width: 165mm;/)
   assert.doesNotMatch(css, /\.wb-page-footer \{[^}]*left:/)
+})
+
+test('printing keeps the declared colours instead of dropping them', () => {
+  const css = pageCss(A4_PORTRAIT)
+
+  assert.match(
+    css,
+    /@media print \{ \* \{ -webkit-print-color-adjust: exact; print-color-adjust: exact; \} \}/,
+  )
+})
+
+test('the colour request only applies while printing', () => {
+  const css = pageCss(A4_PORTRAIT)
+  const outsidePrint = css.replace(/@media print \{[^@]*\}/g, '')
+
+  assert.equal(outsidePrint.includes('print-color-adjust'), false)
+})
+
+test('a theme with an alternate fill repaints the row fill token', () => {
+  const css = documentCss({ ...DEFAULT_THEME, rowFill: '#ffffff', rowAltFill: '#eeeeee' })
+
+  assert.match(css, /tbody tr:nth-child\(even\) td \{ --rowFill: var\(--rowAltFill\); \}/)
+})
+
+test('a theme without an alternate fill gets no alternating rule', () => {
+  assert.equal(documentCss({ ...DEFAULT_THEME, rowFill: '#ffffff' }), '')
+})
+
+test('the page rules never carry the alternating rule', () => {
+  assert.equal(pageCss(A4_PORTRAIT).includes('nth-child'), false)
 })

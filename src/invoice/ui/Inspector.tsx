@@ -1,8 +1,15 @@
 import type { VNode } from '@wabot-dev/framework/ui'
 import { findBlockDefinition } from '../render/blocks/registry'
-import type { IBandName, IBlock, IDocument, IPropValue } from '../render/document'
-import { applyPropChange, findBlock, setBlockRect, setThemeToken } from './documentEdits'
-import type { IEditorStore } from './editorStore'
+import type { IBandName, IBlock, IPropValue } from '../render/document'
+import {
+  applyPropChange,
+  findBlock,
+  setBandHeight,
+  setBlockRect,
+  setThemeToken,
+} from './documentEdits'
+import { selectedBand, singleSelectedBlockId, type IEditorStore } from './editorStore'
+import { BAND_LABELS } from './LayersPanel'
 import { PropertyEditor, type IAssetChoice } from './propertyEditors'
 
 const GEOMETRY: Array<{ key: keyof IBlock & string; label: string }> = [
@@ -54,6 +61,28 @@ function GeometryFields({
   )
 }
 
+function BandFields({ store, band }: { store: IEditorStore; band: IBandName }): VNode {
+  return (
+    <fieldset class="stack-sm">
+      <legend>{BAND_LABELS[band]}</legend>
+      <Field id="band-height" label="Alto (mm)">
+        <input
+          id="band-height"
+          type="number"
+          step="any"
+          data-band-height={band}
+          value={store.doc.value.bands[band].heightMm}
+          onInput={(event) => {
+            const parsed = Number((event.currentTarget as HTMLInputElement).value)
+            if (!Number.isFinite(parsed) || parsed <= 0) return
+            store.commit(setBandHeight(store.doc.value, band, parsed))
+          }}
+        />
+      </Field>
+    </fieldset>
+  )
+}
+
 export function Inspector({
   store,
   assets,
@@ -61,14 +90,15 @@ export function Inspector({
   store: IEditorStore
   assets: IAssetChoice[]
 }): VNode {
-  const band = store.selectedBand.value
-  const blockId = store.selectedBlockId.value
+  const band = selectedBand(store)
+  const blockId = singleSelectedBlockId(store)
   const doc = store.doc.value
   const block = band && blockId ? findBlock(doc, band, blockId) : null
 
   if (!band || !block) {
     return (
       <aside class="stack">
+        {band ? <BandFields store={store} band={band} /> : null}
         <p class="muted">Selecciona un bloque para editar sus propiedades.</p>
       </aside>
     )
@@ -114,6 +144,7 @@ export function Inspector({
                 value={block.props[propName]}
                 doc={doc}
                 assets={assets}
+                widthMm={block.widthMm}
                 onChange={(value) => changeProp(propName, value)}
                 onThemeChange={changeTheme}
               />
