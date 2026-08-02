@@ -2,3 +2,4 @@ node_modules
 .env
 /.wabot
 /dist
+/.playwright-mcp
