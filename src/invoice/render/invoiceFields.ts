@@ -1,0 +1,10 @@
+export const INVOICE_NUMBER_PATH = 'factura.numero'
+export const INVOICE_CUSTOMER_PATH = 'cliente.nombre'
+export const INVOICE_DATE_PATH = 'factura.fecha'
+export const INVOICE_BASE_PATH = 'factura.base'
+export const INVOICE_TAXES_PATH = 'factura.impuestos'
+export const INVOICE_TOTAL_PATH = 'factura.total'
+
+export const ITEM_QUANTITY_KEY = 'cantidad'
+export const ITEM_PRICE_KEY = 'precio'
+export const ITEM_TOTAL_KEY = 'total'

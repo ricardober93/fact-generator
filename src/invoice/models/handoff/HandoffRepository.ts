@@ -1,6 +1,5 @@
 import { CrudRepository, CustomError, query, Random, repository } from '@wabot-dev/framework'
-import { missingRequiredPaths } from '../../render/bind'
-import { DETAIL_ITEM_ROOT, type IDocument } from '../../render/document'
+import { assertDataSatisfiesTemplate } from '../requiredData'
 import { TemplateRepository } from '../template/TemplateRepository'
 import { Handoff, HANDOFF_TTL_MS, type IHandoffRecord } from './Handoff'
 
@@ -63,20 +62,4 @@ export class HandoffRepository extends CrudRepository<Handoff> {
     }
     await this.deleteByExpiresAtLte(now)
   }
-}
-
-function assertDataSatisfiesTemplate(
-  doc: IDocument,
-  data: IHandoffRecord,
-  items: IHandoffRecord[],
-): void {
-  const missing = missingRequiredPaths(doc, data ?? {}, items, DETAIL_ITEM_ROOT)
-  if (missing.length === 0) return
-  throw new CustomError({
-    message: `Missing required data: ${missing.join(', ')}`,
-    humanMessage: `Faltan datos obligatorios: ${missing.join(', ')}`,
-    code: 'MISSING_REQUIRED_DATA',
-    httpCode: 400,
-    info: { paths: missing },
-  })
 }
