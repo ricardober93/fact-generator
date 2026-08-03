@@ -10,7 +10,6 @@ documento.
 
 ## Requirements
 
-
 ### Requirement: Hay un único operador y sus credenciales vienen del entorno
 
 La aplicación DEBE (MUST) reconocer exactamente una identidad, definida por las variables de

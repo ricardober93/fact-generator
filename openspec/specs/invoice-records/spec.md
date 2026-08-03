@@ -242,7 +242,6 @@ cliente, su total y la fecha. Desde la lista se DEBE poder abrir una factura y c
 - **WHEN** no hay ninguna factura guardada
 - **THEN** la lista lo dice y ofrece crear la primera
 
-
 ### Requirement: Un guardado que llega tarde no pisa el anterior
 
 Guardar una factura ya existente DEBE (MUST) indicar sobre qué revisión se está escribiendo. Si

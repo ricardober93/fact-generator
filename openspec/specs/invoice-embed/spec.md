@@ -129,7 +129,6 @@ la única alternativa es recortar la factura o dejar un hueco fijo.
 - **WHEN** el JavaScript está deshabilitado
 - **THEN** la factura se sigue viendo completa y solo se pierde el ajuste automático
 
-
 ### Requirement: Acuñar un handoff exige sesión
 
 La acción que prepara un handoff DEBE (MUST) exigir una sesión válida. Sin ella NO DEBE (MUST NOT)

@@ -9,7 +9,6 @@ navegador para recursos estáticos.
 
 ## Requirements
 
-
 ### Requirement: Una vista parametrizada bajo navegación boosted declara su clave de versión
 
 Toda vista con parámetros de ruta que pertenezca a un controlador con navegación boosted DEBE
