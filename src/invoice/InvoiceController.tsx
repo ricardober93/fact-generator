@@ -1,4 +1,5 @@
 import {
+  container,
   CustomError,
   isArray,
   isNotEmpty,
@@ -20,6 +21,7 @@ import { AppLayout } from './ui/AppLayout'
 import InvoiceEditor from './ui/InvoiceEditor.island'
 import type { ITemplateChoice } from './ui/InvoiceToolbar'
 import { InvoiceList } from './ui/InvoiceList'
+import { versionKey } from './versionKey'
 
 export class InvoiceIdDto {
   @isString()
@@ -83,6 +85,21 @@ function choicesFor(
   return pool.map((template): ITemplateChoice => ({ id: template.id, name: template.name }))
 }
 
+export async function versionOfInvoice({ id }: { id: string }): Promise<string> {
+  const invoice = await container.resolve(InvoiceRepository).find(id)
+  if (!invoice) return 'missing'
+  const templates = await container.resolve(TemplateRepository).findAll()
+  const chosen = templates.find((template) => template.id === invoice.templateId)
+  return versionKey({
+    data: invoice.invoiceData,
+    items: invoice.invoiceItems,
+    params: invoice.params,
+    templateId: invoice.templateId,
+    doc: chosen ? chosen.doc : null,
+    pool: templates.map((template) => [template.id, template.name, template.rev]),
+  })
+}
+
 @uiController({ path: '/invoices', app: true, layout: AppLayout, middlewares: [RequireSession] })
 export class InvoiceController {
   constructor(
@@ -105,7 +122,7 @@ export class InvoiceController {
     return this.editor(null, chosen, {}, [], {}, templates, NO_MISMATCH)
   }
 
-  @view({ path: ':id', title: 'Factura' })
+  @view({ path: ':id', title: 'Factura', swr: { version: versionOfInvoice } })
   async edit(input: InvoiceIdDto): Promise<VNode> {
     const invoice = await this.invoices.find(input.id)
     if (!invoice) throw notFound()

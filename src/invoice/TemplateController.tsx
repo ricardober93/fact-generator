@@ -21,6 +21,7 @@ import { AppLayout } from './ui/AppLayout'
 import Editor from './ui/Editor.island'
 import { PresetGallery } from './ui/PresetGallery'
 import type { IAssetChoice } from './ui/propertyEditors'
+import { versionKey } from './versionKey'
 
 export class CreateTemplateDto {
   @isString()
@@ -85,9 +86,14 @@ function conflict(rev: number): CustomError {
   })
 }
 
-async function revisionOf({ id }: { id: string }): Promise<string> {
+export async function revisionOf({ id }: { id: string }): Promise<string> {
   const template = await container.resolve(TemplateRepository).find(id)
-  return template ? String(template.rev) : 'missing'
+  const assets = await container.resolve(AssetRepository).findAll()
+  return versionKey({
+    doc: template ? template.doc : null,
+    rev: template ? template.rev : null,
+    assets: assets.map((asset) => asset.id),
+  })
 }
 
 function assetChoices(assets: Asset[]): IAssetChoice[] {
