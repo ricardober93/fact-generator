@@ -1,4 +1,6 @@
 import type { VNode } from '@wabot-dev/framework/ui'
+import { SignOutButton } from '../../auth/ui/SignOutButton'
+
 export interface ITemplateChoice {
   id: string
   name: string
@@ -88,6 +90,7 @@ export function InvoiceToolbar({
       <button type="button" class="btn btn-sm" data-action="save" onClick={onSave}>
         Guardar
       </button>
+      <SignOutButton />
     </header>
   )
 }

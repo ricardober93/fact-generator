@@ -2,11 +2,8 @@ import assert from 'node:assert/strict'
 import test, { after, before } from 'node:test'
 import { container, InMemoryLocker, Locker } from '@wabot-dev/framework'
 import { UiControllerMetadataStore } from '@wabot-dev/framework/ui'
-import {
-  createUiHarness,
-  useMemoryRepositories,
-  type UiHarness,
-} from '@wabot-dev/framework/testing'
+import { useMemoryRepositories } from '@wabot-dev/framework/testing'
+import { createSignedInHarness, type ISignedInHarness } from '../auth/__fixtures__/signedIn'
 import { EmbedController } from './EmbedController'
 import { AssetRepository } from './models/asset/AssetRepository'
 import { Handoff, HANDOFF_TTL_MS, type IHandoffRecord } from './models/handoff/Handoff'
@@ -22,10 +19,10 @@ container.register(Locker, { useToken: InMemoryLocker })
 const DATA = INVOICE_DATA as unknown as IHandoffRecord
 const ITEMS = INVOICE_ITEMS as unknown as IHandoffRecord[]
 
-let harness: UiHarness
+let harness: ISignedInHarness
 
 before(async () => {
-  harness = await createUiHarness({ controllers: [EmbedController] })
+  harness = await createSignedInHarness([EmbedController])
 })
 
 after(async () => {

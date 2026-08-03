@@ -8,7 +8,8 @@ import {
   isPresent,
   isString,
 } from '@wabot-dev/framework'
-import { action, uiController, view, type VNode } from '@wabot-dev/framework/ui'
+import { action, uiController, uiMiddleware, view, type VNode } from '@wabot-dev/framework/ui'
+import { RequireSession } from '../auth/RequireSession'
 import { assetsFor } from './embedAssets'
 import { AssetRepository } from './models/asset/AssetRepository'
 import type { Handoff, IHandoffRecord } from './models/handoff/Handoff'
@@ -96,6 +97,7 @@ export class EmbedController {
     @inject(EXPRESS_REQ) private readonly request: IQueryRequest,
   ) {}
 
+  @uiMiddleware(RequireSession)
   @action()
   async prepare(input: PrepareHandoffDto): Promise<{ token: string }> {
     const handoff = await this.handoffs.createHandoff(

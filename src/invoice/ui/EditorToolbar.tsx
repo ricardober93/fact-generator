@@ -1,4 +1,5 @@
 import { type VNode } from '@wabot-dev/framework/ui'
+import { SignOutButton } from '../../auth/ui/SignOutButton'
 import { TEMPLATE_PRESETS } from '../templates/presets'
 import { AlignBar } from './AlignBar'
 import { applyPresetToStore } from './applyPreset'
@@ -90,6 +91,7 @@ export function Toolbar({ store, onSave }: { store: IEditorStore; onSave: () => 
       <button type="button" class="btn btn-sm" data-action="save" onClick={onSave}>
         Guardar
       </button>
+      <SignOutButton />
     </header>
   )
 }

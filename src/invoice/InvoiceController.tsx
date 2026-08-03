@@ -7,6 +7,7 @@ import {
   isString,
 } from '@wabot-dev/framework'
 import { action, redirect, uiController, view, type VNode } from '@wabot-dev/framework/ui'
+import { RequireSession } from '../auth/RequireSession'
 import { assetsFor } from './embedAssets'
 import { AssetRepository } from './models/asset/AssetRepository'
 import type { Invoice, IInvoiceRecord } from './models/invoice/Invoice'
@@ -82,7 +83,7 @@ function choicesFor(
   return pool.map((template): ITemplateChoice => ({ id: template.id, name: template.name }))
 }
 
-@uiController({ path: '/invoices', app: true, layout: AppLayout })
+@uiController({ path: '/invoices', app: true, layout: AppLayout, middlewares: [RequireSession] })
 export class InvoiceController {
   constructor(
     private readonly invoices: InvoiceRepository,

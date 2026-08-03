@@ -144,8 +144,11 @@ Consecuencia de la falta de proyección de columnas: los logos van en su **propi
   SRI/DIAN/CFDI.
 - PDF **solo por impresión del navegador**. No habrá Chrome headless, ni Gotenberg, ni
   endpoint de PDF.
-- Embebido **solo por el producto propio**, mismo origen, cookies de sesión. Sin
-  multi-tenant, sin API keys, sin tokens firmados. El embed **no** puede ser `static`.
+- Embebido **solo por el producto propio**. Sin multi-tenant, sin API keys, sin tokens
+  firmados por tenant. El embed **no** puede ser `static`. **Acuñar** un handoff
+  (`POST /embed/_action/prepare`) exige sesión; **renderizarlo** (`GET /embed/:token`) solo
+  exige el token, porque esa vista se pinta dentro del iframe de otro producto, donde
+  nuestra cookie puede no existir. El token es inadivinable y caduca a los diez minutos.
 - Logos en **base64 en la base de datos**, en la entidad `Asset`. Sin S3, sin disco, sin
   ruta estática.
 - Los datos del documento **nunca** viajan en el query string del iframe.

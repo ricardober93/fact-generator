@@ -1,11 +1,8 @@
 import assert from 'node:assert/strict'
 import test, { after, before } from 'node:test'
 import { container, InMemoryLocker, Locker } from '@wabot-dev/framework'
-import {
-  createUiHarness,
-  useMemoryRepositories,
-  type UiHarness,
-} from '@wabot-dev/framework/testing'
+import { useMemoryRepositories } from '@wabot-dev/framework/testing'
+import { createSignedInHarness, type ISignedInHarness } from '../auth/__fixtures__/signedIn'
 import { InvoiceController } from './InvoiceController'
 import { InvoiceRepository } from './models/invoice/InvoiceRepository'
 import type { IInvoiceRecord } from './models/invoice/Invoice'
@@ -23,11 +20,11 @@ const DATA: IInvoiceRecord = {
 
 const ITEMS: IInvoiceRecord[] = [{ descripcion: 'Producto uno', total: 70 }]
 
-let harness: UiHarness
+let harness: ISignedInHarness
 let templateId = ''
 
 before(async () => {
-  harness = await createUiHarness({ controllers: [InvoiceController] })
+  harness = await createSignedInHarness([InvoiceController])
   const doc = findTemplatePreset('chevron-slate')!.build()
   const template = await container.resolve(TemplateRepository).createTemplate('Chevron', doc)
   templateId = template.id

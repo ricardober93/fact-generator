@@ -1,11 +1,8 @@
 import assert from 'node:assert/strict'
 import test, { after, before } from 'node:test'
 import { container, InMemoryLocker, Locker } from '@wabot-dev/framework'
-import {
-  createUiHarness,
-  useMemoryRepositories,
-  type UiHarness,
-} from '@wabot-dev/framework/testing'
+import { useMemoryRepositories } from '@wabot-dev/framework/testing'
+import { createSignedInHarness, type ISignedInHarness } from '../auth/__fixtures__/signedIn'
 import { EmbedController } from './EmbedController'
 import { TemplateController } from './TemplateController'
 import { HandoffRepository } from './models/handoff/HandoffRepository'
@@ -18,10 +15,10 @@ import { TEMPLATE_PRESETS } from './templates/presets'
 useMemoryRepositories()
 container.register(Locker, { useToken: InMemoryLocker })
 
-let harness: UiHarness
+let harness: ISignedInHarness
 
 before(async () => {
-  harness = await createUiHarness({ controllers: [TemplateController, EmbedController] })
+  harness = await createSignedInHarness([TemplateController, EmbedController])
 })
 
 after(async () => {

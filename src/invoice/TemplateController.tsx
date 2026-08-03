@@ -8,6 +8,8 @@ import {
   isString,
 } from '@wabot-dev/framework'
 import { action, redirect, uiController, view, type VNode } from '@wabot-dev/framework/ui'
+import { RequireSession } from '../auth/RequireSession'
+import { SignOutButton } from '../auth/ui/SignOutButton'
 import { assetsFor } from './embedAssets'
 import { Asset } from './models/asset/Asset'
 import { AssetRepository } from './models/asset/AssetRepository'
@@ -98,7 +100,11 @@ function assetChoices(assets: Asset[]): IAssetChoice[] {
 function TemplateList({ templates }: { templates: Template[] }): VNode {
   return (
     <main class="container stack-lg">
-      <h1>Plantillas</h1>
+      <div class="row">
+        <h1>Plantillas</h1>
+        <span class="wb-toolbar-gap" />
+        <SignOutButton />
+      </div>
 
       {templates.length === 0 ? (
         <p class="muted">Todavía no hay plantillas.</p>
@@ -137,7 +143,7 @@ function TemplateList({ templates }: { templates: Template[] }): VNode {
   )
 }
 
-@uiController({ path: '/templates', app: true, layout: AppLayout })
+@uiController({ path: '/templates', app: true, layout: AppLayout, middlewares: [RequireSession] })
 export class TemplateController {
   constructor(
     private readonly templates: TemplateRepository,

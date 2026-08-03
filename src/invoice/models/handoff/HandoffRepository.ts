@@ -11,6 +11,8 @@ export class HandoffRepository extends CrudRepository<Handoff> {
     super()
   }
 
+  declare findAll: () => Promise<Handoff[]>
+
   @query() declare findOneByToken: (token: string) => Promise<Handoff | null>
 
   @query() declare deleteByExpiresAtLte: (expiresAt: number) => Promise<void>
