@@ -153,7 +153,11 @@ Consecuencia de la falta de proyección de columnas: los logos van en su **propi
   ruta estática.
 - Los datos del documento **nunca** viajan en el query string del iframe.
 - Escritura con **bloqueo optimista** por campo `rev`: el JSONB se reescribe entero, así
-  que sin `rev` la última escritura gana en silencio.
+  que sin `rev` la última escritura gana en silencio. Lo cumplen **`Template` y `Invoice`**:
+  ambas comparan la revisión recibida dentro de un `Locker` por id y no escriben nada si no
+  coincide. El conflicto viaja como **valor** (`{ status: 'conflict', rev }` con `200`), no
+  como excepción, porque `callAction` descarta el estado HTTP y el `code` y solo propaga el
+  mensaje: deducir un conflicto del texto ata el comportamiento a una redacción concreta.
 
 ### Seguridad
 

@@ -1,4 +1,4 @@
-import { CrudRepository, CustomError, repository } from '@wabot-dev/framework'
+import { CrudRepository, CustomError, Locker, repository } from '@wabot-dev/framework'
 import { assertDataSatisfiesTemplate } from '../requiredData'
 import { TemplateRepository } from '../template/TemplateRepository'
 import { Invoice, type IInvoiceRecord } from './Invoice'
@@ -9,6 +9,10 @@ export interface IInvoiceInput {
   items: IInvoiceRecord[]
   params?: Record<string, string>
 }
+
+export type ISaveInvoiceResult =
+  | { status: 'saved'; invoice: Invoice }
+  | { status: 'conflict'; invoice: Invoice }
 
 function unknownTemplate(templateId: string): CustomError {
   return new CustomError({
@@ -30,7 +34,10 @@ function notFound(): CustomError {
 
 @repository({ table: 'invoice', constructor: Invoice })
 export class InvoiceRepository extends CrudRepository<Invoice> {
-  constructor(private readonly templates: TemplateRepository) {
+  constructor(
+    private readonly templates: TemplateRepository,
+    private readonly locker: Locker,
+  ) {
     super()
   }
 
@@ -38,20 +45,31 @@ export class InvoiceRepository extends CrudRepository<Invoice> {
 
   async createInvoice(input: IInvoiceInput): Promise<Invoice> {
     const checked = await this.checked(input)
-    const invoice = new Invoice(checked)
+    const invoice = new Invoice({ ...checked, rev: 1 })
     await this.create(invoice)
     return invoice
   }
 
-  async saveInvoice(id: string, input: IInvoiceInput): Promise<Invoice> {
+  async saveInvoice(
+    id: string,
+    input: IInvoiceInput,
+    expectedRev: number,
+  ): Promise<ISaveInvoiceResult> {
     if (typeof id !== 'string' || id.length === 0) {
       throw new CustomError({ message: 'Invoice id is required', httpCode: 400 })
     }
-    const invoice = await this.find(id)
-    if (!invoice) throw notFound()
-    invoice.applyChanges(await this.checked(input))
-    await this.update(invoice)
-    return invoice
+    if (!Number.isFinite(expectedRev)) {
+      throw new CustomError({ message: 'Invoice revision is required', httpCode: 400 })
+    }
+    const checked = await this.checked(input)
+    return this.locker.withKey(`invoice:${id}`).run(async () => {
+      const invoice = await this.find(id)
+      if (!invoice) throw notFound()
+      if (invoice.rev !== expectedRev) return { status: 'conflict', invoice }
+      invoice.applyRevision(checked)
+      await this.update(invoice)
+      return { status: 'saved', invoice }
+    })
   }
 
   async findByNumero(numero: string): Promise<Invoice[]> {

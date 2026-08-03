@@ -23,12 +23,14 @@ import {
   type IFormValue,
 } from './invoiceEdits'
 import { formShapeOf } from './invoiceForm'
+import { nextSaveState, type ISaveReply } from './saveOutcome'
 
 const SAVE_URL = actionUrl('/invoices', 'save')
 const DOCUMENT_URL = actionUrl('/invoices', 'document')
 
 export interface IInvoiceEditorProps {
   id: string | null
+  rev: number
   templateId: string
   doc: IDocument
   data: IFormRecord
@@ -46,6 +48,7 @@ function InvoiceEditor(props: IInvoiceEditorProps): VNode {
   const data = useSignal(props.data)
   const items = useSignal(props.items)
   const invoiceId = useSignal(props.id)
+  const rev = useSignal(props.rev)
   const status = useSignal('')
   const duplicate = useSignal(false)
   const shape = useComputed(() => formShapeOf(doc.value))
@@ -81,16 +84,27 @@ function InvoiceEditor(props: IInvoiceEditorProps): VNode {
   async function save(): Promise<void> {
     status.value = 'Guardando'
     try {
-      const result = await callAction<{ id: string; duplicate: boolean }>(SAVE_URL, {
+      const result = await callAction<ISaveReply>(SAVE_URL, {
         id: invoiceId.value,
+        rev: rev.value,
         templateId: templateId.value,
         data: data.value,
         items: items.value,
         params: props.params,
       })
-      invoiceId.value = result.id
-      duplicate.value = result.duplicate
-      status.value = 'Guardada'
+      const next = nextSaveState(
+        {
+          id: invoiceId.value,
+          rev: rev.value,
+          status: status.value,
+          duplicate: duplicate.value,
+        },
+        result,
+      )
+      invoiceId.value = next.id
+      rev.value = next.rev
+      duplicate.value = next.duplicate
+      status.value = next.status
     } catch (error) {
       status.value = error instanceof Error ? error.message : 'No se pudo guardar'
     }

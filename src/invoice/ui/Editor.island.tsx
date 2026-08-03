@@ -16,6 +16,7 @@ import { removeBlocks } from './documentEdits'
 import { createEditorStore, type IEditorStore, type ISelection } from './editorStore'
 import { Toolbar } from './EditorToolbar'
 import type { IAssetChoice } from './propertyEditors'
+import { CONFLICT_MESSAGE } from './saveOutcome'
 import { ThemePanel } from './ThemePanel'
 
 const SAVE_URL = actionUrl('/templates', 'save')
@@ -131,20 +132,19 @@ function Editor(props: IEditorProps): VNode {
   async function save(): Promise<void> {
     store.status.value = { state: 'saving', message: 'Guardando' }
     try {
-      const result = await callAction<{ rev: number }>(SAVE_URL, {
+      const result = await callAction<{ status?: string; rev: number }>(SAVE_URL, {
         id: store.templateId,
         doc: store.doc.value,
         rev: store.rev.value,
       })
       store.rev.value = result.rev
-      store.status.value = { state: 'saved', message: 'Guardado' }
+      store.status.value =
+        result.status === 'conflict'
+          ? { state: 'conflict', message: CONFLICT_MESSAGE }
+          : { state: 'saved', message: 'Guardado' }
     } catch (error) {
       const message = error instanceof Error ? error.message : 'No se pudo guardar'
-      const conflict = /409|revisi/i.test(message)
-      store.status.value = {
-        state: conflict ? 'conflict' : 'error',
-        message: conflict ? 'Otro guardado se adelantó. Tus cambios siguen aquí.' : message,
-      }
+      store.status.value = { state: 'error', message }
     }
   }
 

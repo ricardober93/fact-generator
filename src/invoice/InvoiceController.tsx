@@ -3,6 +3,7 @@ import {
   CustomError,
   isArray,
   isNotEmpty,
+  isNumber,
   isOptional,
   isPresent,
   isString,
@@ -47,6 +48,17 @@ export class SaveInvoiceDto {
   @isOptional()
   @isPresent()
   params?: Record<string, string>
+
+  @isOptional()
+  @isNumber()
+  rev?: number
+}
+
+export interface ISaveInvoiceReply {
+  status: 'saved' | 'conflict'
+  id: string
+  rev: number
+  duplicate: boolean
 }
 
 export class NewInvoiceDto {
@@ -130,7 +142,7 @@ export class InvoiceController {
     const template = templates.find((candidate) => candidate.id === invoice.templateId)
     if (!template) throw notFound()
     return this.editor(
-      invoice.id,
+      invoice,
       template,
       invoice.invoiceData,
       invoice.invoiceItems,
@@ -148,17 +160,28 @@ export class InvoiceController {
   }
 
   @action()
-  async save(input: SaveInvoiceDto): Promise<{ id: string; duplicate: boolean }> {
+  async save(input: SaveInvoiceDto): Promise<ISaveInvoiceReply> {
     const payload = {
       templateId: input.templateId,
       data: input.data,
       items: input.items,
       params: input.params ?? {},
     }
-    const invoice = input.id
-      ? await this.invoices.saveInvoice(input.id, payload)
-      : await this.invoices.createInvoice(payload)
-    return { id: invoice.id, duplicate: await this.isDuplicate(invoice) }
+    if (!input.id) {
+      const created = await this.invoices.createInvoice(payload)
+      return await this.reply('saved', created)
+    }
+    const result = await this.invoices.saveInvoice(input.id, payload, input.rev ?? 0)
+    return await this.reply(result.status, result.invoice)
+  }
+
+  private async reply(status: 'saved' | 'conflict', invoice: Invoice): Promise<ISaveInvoiceReply> {
+    return {
+      status,
+      id: invoice.id,
+      rev: invoice.rev,
+      duplicate: status === 'saved' ? await this.isDuplicate(invoice) : false,
+    }
   }
 
   @action()
@@ -176,7 +199,7 @@ export class InvoiceController {
   }
 
   private async editor(
-    id: string | null,
+    invoice: Invoice | null,
     template: Template,
     data: IInvoiceRecord,
     items: IInvoiceRecord[],
@@ -186,7 +209,8 @@ export class InvoiceController {
   ): Promise<VNode> {
     return (
       <InvoiceEditor
-        id={id}
+        id={invoice ? invoice.id : null}
+        rev={invoice ? invoice.rev : 0}
         templateId={template.id}
         doc={template.doc}
         data={data}

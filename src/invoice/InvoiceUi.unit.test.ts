@@ -81,6 +81,78 @@ test('a second invoice with the same number saves and warns', async () => {
   assert.ok(await invoices().find(body.id))
 })
 
+test('saving reports the revision it landed on', async () => {
+  const created = await (
+    await harness.action('/invoices/_action/save', { templateId, data: DATA, items: ITEMS })
+  ).json()
+
+  assert.equal(created.status, 'saved')
+  assert.equal(created.rev, 1)
+
+  const again = await (
+    await harness.action('/invoices/_action/save', {
+      id: created.id,
+      templateId,
+      data: DATA,
+      items: ITEMS,
+      rev: created.rev,
+    })
+  ).json()
+
+  assert.equal(again.status, 'saved')
+  assert.equal(again.rev, 2)
+})
+
+test('saving from a stale revision reports a conflict and changes nothing', async () => {
+  const created = await (
+    await harness.action('/invoices/_action/save', { templateId, data: DATA, items: ITEMS })
+  ).json()
+  await harness.action('/invoices/_action/save', {
+    id: created.id,
+    templateId,
+    data: DATA,
+    items: ITEMS,
+    rev: created.rev,
+  })
+
+  const late = await (
+    await harness.action('/invoices/_action/save', {
+      id: created.id,
+      templateId,
+      data: { ...DATA, cliente: { nombre: 'NO DEBE GUARDARSE' } },
+      items: ITEMS,
+      rev: created.rev,
+    })
+  ).json()
+
+  assert.equal(late.status, 'conflict')
+  assert.equal(late.rev, 2)
+  const stored = await invoices().find(created.id)
+  assert.notEqual(
+    (stored!.invoiceData.cliente as Record<string, unknown>).nombre,
+    'NO DEBE GUARDARSE',
+  )
+})
+
+test('a conflict is told apart without reading any message', async () => {
+  const created = await (
+    await harness.action('/invoices/_action/save', { templateId, data: DATA, items: ITEMS })
+  ).json()
+
+  const late = await harness.action('/invoices/_action/save', {
+    id: created.id,
+    templateId,
+    data: DATA,
+    items: ITEMS,
+    rev: 999,
+  })
+  const body = await late.json()
+
+  assert.equal(late.status, 200)
+  assert.equal(body.status, 'conflict')
+  assert.equal(body.duplicate, false)
+})
+
 test('the list shows number, customer, date and total', async () => {
   const page = await harness.get('/invoices')
 

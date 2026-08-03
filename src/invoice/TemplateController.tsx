@@ -76,14 +76,9 @@ function documentForPreset(preset: string | undefined): IDocument {
   return found.build()
 }
 
-function conflict(rev: number): CustomError {
-  return new CustomError({
-    message: `Template revision is stale, stored revision is ${rev}`,
-    humanMessage: 'Otro guardado se adelantó al tuyo.',
-    code: 'TEMPLATE_REVISION_CONFLICT',
-    httpCode: 409,
-    info: { rev },
-  })
+export interface ISaveTemplateReply {
+  status: 'saved' | 'conflict'
+  rev: number
 }
 
 export async function revisionOf({ id }: { id: string }): Promise<string> {
@@ -189,9 +184,8 @@ export class TemplateController {
   }
 
   @action()
-  async save(input: SaveTemplateDto): Promise<{ rev: number }> {
+  async save(input: SaveTemplateDto): Promise<ISaveTemplateReply> {
     const result = await this.templates.saveDocument(input.id, input.doc, input.rev)
-    if (result.status === 'conflict') throw conflict(result.template.rev)
-    return { rev: result.template.rev }
+    return { status: result.status, rev: result.template.rev }
   }
 }

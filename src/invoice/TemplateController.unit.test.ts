@@ -97,12 +97,33 @@ test('saving from a stale revision is refused and changes nothing', async () => 
     rev: 1,
   })
 
-  assert.equal(stale.status, 409)
+  assert.equal(stale.status, 200)
+  assert.equal(stale.json().status, 'conflict')
   const stored = await templates().find(template.id)
   assert.equal(stored?.rev, 2)
   const ids = stored?.doc.bands.summary.blocks.map((block) => block.id) ?? []
   assert.ok(ids.includes(first.blockId))
   assert.equal(ids.includes(second.blockId), false)
+})
+
+test('a template conflict is told apart without reading any message', async () => {
+  const template = await newTemplate('tipada')
+  const first = addBlock(template.doc, 'summary', 'box')
+
+  const good = await harness.action('/templates/_action/save', {
+    id: template.id,
+    doc: first.doc,
+    rev: 1,
+  })
+  const stale = await harness.action('/templates/_action/save', {
+    id: template.id,
+    doc: addBlock(template.doc, 'summary', 'line').doc,
+    rev: 1,
+  })
+
+  assert.equal(good.json().status, 'saved')
+  assert.equal(stale.json().status, 'conflict')
+  assert.equal(stale.json().rev, 2)
 })
 
 test('an invalid document is refused and names what is wrong', async () => {

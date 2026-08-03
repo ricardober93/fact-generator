@@ -47,11 +47,16 @@ test('an unchanged invoice keeps the same key', async () => {
 test('saving different data changes the key', async () => {
   const before = await versionOfInvoice({ id: invoiceId })
 
-  await invoices().saveInvoice(invoiceId, {
-    templateId,
-    data: { ...DATA, factura: { ...(DATA.factura as IInvoiceRecord), numero: 'A-999' } },
-    items: ITEMS,
-  })
+  const current = await invoices().find(invoiceId)
+  await invoices().saveInvoice(
+    invoiceId,
+    {
+      templateId,
+      data: { ...DATA, factura: { ...(DATA.factura as IInvoiceRecord), numero: 'A-999' } },
+      items: ITEMS,
+    },
+    current!.rev,
+  )
 
   assert.notEqual(await versionOfInvoice({ id: invoiceId }), before)
 })

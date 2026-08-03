@@ -29,11 +29,16 @@ export interface IInvoiceData extends IEntityData {
   data: IInvoiceRecord
   items: IInvoiceRecord[]
   params: Record<string, string>
+  rev?: number
 }
 
 export class Invoice extends Entity<IInvoiceData> {
   get templateId(): string {
     return this.data.templateId
+  }
+
+  get rev(): number {
+    return this.data.rev ?? 0
   }
 
   get invoiceData(): IInvoiceRecord {
@@ -68,6 +73,11 @@ export class Invoice extends Entity<IInvoiceData> {
       items: input.items,
       params: input.params,
     })
+  }
+
+  applyRevision(input: Omit<IInvoiceData, keyof IEntityData>): void {
+    this.applyChanges(input)
+    this.update({ rev: this.rev + 1 })
   }
 
   private readPath(path: string): string {
