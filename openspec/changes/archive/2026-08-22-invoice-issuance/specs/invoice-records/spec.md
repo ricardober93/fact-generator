@@ -179,7 +179,7 @@ DEBE (MUST) existir una lista de los documentos guardados que muestre, por cada 
 estado, su número —vacío mientras sea borrador—, su cliente, su total y la fecha. Desde la lista se
 DEBE poder abrir un documento y crear uno nuevo.
 
-#### Scenario: La lista enseña lo que hace falta para reconocer un documento
+#### Scenario: La lista enseña lo que hace falta para reconocer una factura
 
 - **WHEN** hay documentos guardados y se abre la lista
 - **THEN** cada fila muestra tipo, estado, número, cliente, total y fecha, y enlaza al documento

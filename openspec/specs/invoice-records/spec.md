@@ -16,13 +16,20 @@ Una factura DEBE (MUST) guardar el identificador de la plantilla con la que se p
 los datos de la factura, la lista de sus líneas y los parámetros del embed. NO DEBE (MUST NOT)
 guardar el HTML renderizado, ningún PDF, ninguna imagen del documento ni una copia del diseño.
 
-Junto a esos datos, una factura DEBE guardar un **contador de revisión**: un entero que sube en
+Junto a esos datos, una factura DEBE guardar como **campos propios** —no como rutas dentro del
+registro libre— su tipo de documento, su estado, y, una vez emitida, su prefijo, su número y su
+instante de emisión. Son los cinco datos que decide el sistema y no la plantilla: por eso no pueden
+vivir en un blob que cualquiera edita, y por eso se pueden consultar sin traerse todas las facturas
+a memoria.
+
+Junto a ellos, una factura DEBE guardar un **contador de revisión**: un entero que sube en
 cada guardado y que solo existe para detectar escrituras que se pisan. NO DEBE (MUST NOT)
 guardar las revisiones anteriores: es un contador, no un historial.
 
 El papel se vuelve a pintar en cada visita a partir de los datos guardados y de la plantilla **en el
 estado en que esté en ese momento**. Es lo que permite retocar un diseño y que las facturas ya
-emitidas salgan con el retoque.
+emitidas salgan con el retoque. Lo que queda congelado al emitir son los **datos**, no el diseño:
+el papel es la representación, el registro son los datos.
 
 Guardar una factura DEBE validar que los datos obligatorios que declara su plantilla están
 presentes, con el mismo criterio que usa el render.
@@ -30,8 +37,14 @@ presentes, con el mismo criterio que usa el render.
 #### Scenario: Lo que se guarda
 
 - **WHEN** se guarda una factura
-- **THEN** quedan almacenados la plantilla, los datos, las líneas, los parámetros y el contador
-  de revisión, y nada más
+- **THEN** quedan almacenados la plantilla, los datos, las líneas, los parámetros, el tipo, el
+  estado y el contador de revisión, y nada más
+
+#### Scenario: Lo que se guarda al emitir
+
+- **WHEN** se emite una factura
+- **THEN** quedan almacenados además su prefijo, su número y su instante de emisión como campos
+  propios
 
 #### Scenario: No se guarda el historial
 
@@ -42,6 +55,11 @@ presentes, con el mismo criterio que usa el render.
 
 - **WHEN** se guarda una factura, se cambia después un color de la plantilla y se vuelve a abrir
 - **THEN** la factura se pinta con el color nuevo, sin haber tocado sus datos
+
+#### Scenario: Retocar el diseño también alcanza a las emitidas
+
+- **WHEN** se emite una factura, se cambia después un color de su plantilla y se vuelve a abrir
+- **THEN** se pinta con el color nuevo y sus datos congelados no cambian
 
 #### Scenario: Una factura sin sus datos obligatorios no se guarda
 
@@ -58,13 +76,22 @@ fecha o casilla.
 
 Un camino declarado obligatorio DEBE señalarse como tal en el formulario.
 
-El formulario NO DEBE (MUST NOT) escribirse a mano por diseño: una plantilla que declara un camino
+El camino de número de factura es la excepción: NO DEBE (MUST NOT) ofrecerse como campo editable,
+porque el número lo asigna la emisión. La plantilla lo sigue declarando y lo sigue pintando; lo que
+desaparece es la casilla donde alguien lo tecleaba.
+
+El formulario NO DEBE escribirse a mano por diseño: una plantilla que declara un camino
 nuevo obtiene su campo sin tocar el formulario.
 
 #### Scenario: Los campos salen del schema
 
 - **WHEN** se abre el formulario de una factura sobre una plantilla que declara `cliente.nombre`
 - **THEN** aparece un campo para `cliente.nombre`
+
+#### Scenario: El número no es un campo del formulario
+
+- **WHEN** se abre el formulario de una factura sobre una plantilla que declara el camino de número
+- **THEN** no aparece ninguna casilla para escribirlo
 
 #### Scenario: Los caminos de ítem son columnas, no campos
 
@@ -108,6 +135,10 @@ guarda es lo que hay en el campo, no el resultado del cálculo.
 Ni el servidor ni el render DEBEN (MUST NOT) recalcular ningún importe. La aritmética ocurre en un
 único sitio, de modo que lo que se ve en pantalla y lo que queda guardado no pueden discrepar.
 
+Al **emitir** —y solo al emitir— el servidor comprueba que esos importes cuadran entre sí y rechaza
+la emisión si no lo hacen. Comprobar no es recalcular: el servidor sigue sin escribir ni un
+importe. Mientras el documento es borrador, la aritmética sigue siendo enteramente libre.
+
 La aritmética DEBE hacerse de forma que no arrastre error de coma flotante en importes de dos
 decimales.
 
@@ -130,6 +161,11 @@ decimales.
 
 - **WHEN** se guarda una factura cuyos totales no cuadran con sus líneas
 - **THEN** se guardan los totales tal y como se enviaron
+
+#### Scenario: Al emitir sí se comprueban
+
+- **WHEN** se intenta emitir esa misma factura
+- **THEN** la emisión se rechaza y los importes guardados siguen siendo los que se enviaron
 
 ### Requirement: El visualizador pinta en vivo con el motor de render
 
@@ -185,24 +221,6 @@ que genere un PDF ni ningún archivo de PDF almacenado.
 - **WHEN** se recorre la superficie HTTP de las facturas
 - **THEN** no existe ninguna ruta que devuelva un PDF
 
-### Requirement: El número de factura lo escribe la persona
-
-El número de factura DEBE (MUST) ser un campo que rellena quien crea la factura. El sistema NO DEBE
-(MUST NOT) asignarlo, ni reservarlo, ni llevar una secuencia, ni rechazar un número repetido.
-
-Si al guardar ya existe otra factura con ese número, DEBE avisarse junto al campo. El aviso NO DEBE
-impedir guardar.
-
-#### Scenario: Un número repetido avisa pero pasa
-
-- **WHEN** se guarda una factura con un número que ya tiene otra
-- **THEN** la factura se guarda y se avisa de que el número está repetido
-
-#### Scenario: Nadie rellena el número por ti
-
-- **WHEN** se abre el formulario de una factura nueva
-- **THEN** el número viene vacío
-
 ### Requirement: Se avisa cuando los datos guardados ya no encajan con la plantilla
 
 Al abrir una factura guardada, DEBE (MUST) compararse lo que tiene almacenado con el `dataSchema` de
@@ -211,6 +229,10 @@ caminos que la plantilla ya no usa, DEBE decirse cuáles.
 
 Los datos guardados NO DEBEN (MUST NOT) modificarse ni borrarse por ese desajuste: la factura se
 sigue pudiendo abrir y corregir.
+
+En un borrador el aviso es informativo. En una factura **emitida** el mismo desajuste impide
+imprimir, porque un papel entregado a un cliente al que le falta un dato obligatorio es peor que un
+papel que no sale.
 
 #### Scenario: La plantilla pide un camino que la factura no tiene
 
@@ -222,6 +244,11 @@ sigue pudiendo abrir y corregir.
 - **WHEN** se reenlaza un texto de la plantilla a otro camino y se abre una factura anterior
 - **THEN** se avisa de que el dato guardado quedó huérfano y su valor sigue almacenado
 
+#### Scenario: En una emitida el desajuste impide imprimir
+
+- **WHEN** se abre una factura emitida cuyos datos no cubren un camino obligatorio de su plantilla
+- **THEN** se nombra ese camino y no se puede imprimir
+
 #### Scenario: Sin desajuste no hay ruido
 
 - **WHEN** se abre una factura cuyos datos encajan con su plantilla
@@ -229,13 +256,19 @@ sigue pudiendo abrir y corregir.
 
 ### Requirement: Las facturas guardadas se listan
 
-DEBE (MUST) existir una lista de las facturas guardadas que muestre, por cada una, su número, su
-cliente, su total y la fecha. Desde la lista se DEBE poder abrir una factura y crear una nueva.
+DEBE (MUST) existir una lista de los documentos guardados que muestre, por cada uno, su tipo, su
+estado, su número —vacío mientras sea borrador—, su cliente, su total y la fecha. Desde la lista se
+DEBE poder abrir un documento y crear uno nuevo.
 
 #### Scenario: La lista enseña lo que hace falta para reconocer una factura
 
-- **WHEN** hay facturas guardadas y se abre la lista
-- **THEN** cada fila muestra número, cliente, total y fecha, y enlaza a la factura
+- **WHEN** hay documentos guardados y se abre la lista
+- **THEN** cada fila muestra tipo, estado, número, cliente, total y fecha, y enlaza al documento
+
+#### Scenario: Un borrador se distingue de un emitido
+
+- **WHEN** la lista contiene un borrador y una factura emitida
+- **THEN** el borrador aparece sin número y marcado como borrador
 
 #### Scenario: Sin facturas la lista lo dice
 
