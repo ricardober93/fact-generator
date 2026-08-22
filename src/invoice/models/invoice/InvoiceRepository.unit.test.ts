@@ -238,14 +238,3 @@ test('saving an invoice that does not exist is an error, not a conflict', async 
     invoices().saveInvoice('no-existe', { templateId, data: DATA, items: ITEMS }, 1),
   )
 })
-
-test('invoices sharing a number are found together', async () => {
-  const templateId = await seedTemplate()
-  const repeated: IInvoiceRecord = { ...DATA, factura: { numero: 'F-REPE', total: 1 } }
-  await invoices().createInvoice({ templateId, data: repeated, items: ITEMS })
-  await invoices().createInvoice({ templateId, data: repeated, items: ITEMS })
-
-  assert.equal((await invoices().findByNumero('F-REPE')).length, 2)
-  assert.deepEqual(await invoices().findByNumero('no-existe'), [])
-  assert.deepEqual(await invoices().findByNumero(''), [])
-})

@@ -6,6 +6,7 @@ import {
   INVOICE_NUMBER_PATH,
   INVOICE_TOTAL_PATH,
 } from '../../render/invoiceFields'
+import type { IDocType } from '../docType'
 
 export type IInvoiceValue =
   | string
@@ -16,6 +17,20 @@ export type IInvoiceValue =
   | { [key: string]: IInvoiceValue }
 
 export type IInvoiceRecord = { [key: string]: IInvoiceValue }
+
+export type IInvoiceStatus = 'borrador' | 'emitida'
+
+export interface ICorrectedDocument {
+  id: string
+  prefix: string
+  number: number
+}
+
+export interface IIssueStamp {
+  prefix: string
+  number: number
+  issuedAt: number
+}
 
 export interface IInvoiceSummary {
   numero: string
@@ -30,6 +45,23 @@ export interface IInvoiceData extends IEntityData {
   items: IInvoiceRecord[]
   params: Record<string, string>
   rev?: number
+  docType?: IDocType
+  status?: IInvoiceStatus
+  prefix?: string
+  number?: number
+  issuedAt?: number
+  corrects?: ICorrectedDocument
+  correctionReason?: string
+}
+
+function withPath(root: IInvoiceRecord, path: string, value: string): IInvoiceRecord {
+  const [head, ...rest] = path.split('.')
+  if (!head) return root
+  if (rest.length === 0) return { ...root, [head]: value }
+  const child = root[head]
+  const isRecord = !!child && typeof child === 'object' && !Array.isArray(child)
+  const branch = isRecord ? (child as IInvoiceRecord) : {}
+  return { ...root, [head]: withPath(branch, rest.join('.'), value) }
 }
 
 export class Invoice extends Entity<IInvoiceData> {
@@ -39,6 +71,38 @@ export class Invoice extends Entity<IInvoiceData> {
 
   get rev(): number {
     return this.data.rev ?? 0
+  }
+
+  get docType(): IDocType {
+    return this.data.docType ?? 'factura'
+  }
+
+  get status(): IInvoiceStatus {
+    return this.data.status ?? 'borrador'
+  }
+
+  get issued(): boolean {
+    return this.status === 'emitida'
+  }
+
+  get prefix(): string {
+    return this.data.prefix ?? ''
+  }
+
+  get number(): number | null {
+    return this.data.number ?? null
+  }
+
+  get issuedAt(): Date | null {
+    return this.data.issuedAt === undefined ? null : new Date(this.data.issuedAt)
+  }
+
+  get corrects(): ICorrectedDocument | null {
+    return this.data.corrects ?? null
+  }
+
+  get correctionReason(): string {
+    return this.data.correctionReason ?? ''
   }
 
   get invoiceData(): IInvoiceRecord {
@@ -54,12 +118,13 @@ export class Invoice extends Entity<IInvoiceData> {
   }
 
   get numero(): string {
-    return this.readPath(INVOICE_NUMBER_PATH)
+    if (this.data.number === undefined) return this.readPath(INVOICE_NUMBER_PATH)
+    return `${this.prefix}${this.data.number}`
   }
 
   get summary(): IInvoiceSummary {
     return {
-      numero: this.readPath(INVOICE_NUMBER_PATH),
+      numero: this.numero,
       cliente: this.readPath(INVOICE_CUSTOMER_PATH),
       total: this.readPath(INVOICE_TOTAL_PATH),
       fecha: this.readPath(INVOICE_DATE_PATH),
@@ -73,11 +138,31 @@ export class Invoice extends Entity<IInvoiceData> {
       items: input.items,
       params: input.params,
     })
+    if (input.correctionReason !== undefined) {
+      this.update({ correctionReason: input.correctionReason })
+    }
   }
 
   applyRevision(input: Omit<IInvoiceData, keyof IEntityData>): void {
     this.applyChanges(input)
     this.update({ rev: this.rev + 1 })
+  }
+
+  applyIssue(stamp: IIssueStamp): void {
+    if (typeof stamp?.prefix !== 'string' || !Number.isInteger(stamp?.number)) {
+      throw new Error('applyIssue requires a prefix and an integer number')
+    }
+    if (!Number.isFinite(stamp.issuedAt)) {
+      throw new Error('applyIssue requires an instant')
+    }
+    this.update({
+      status: 'emitida',
+      docType: this.docType,
+      prefix: stamp.prefix,
+      number: stamp.number,
+      issuedAt: stamp.issuedAt,
+      data: withPath(this.data.data, INVOICE_NUMBER_PATH, `${stamp.prefix}${stamp.number}`),
+    })
   }
 
   private readPath(path: string): string {

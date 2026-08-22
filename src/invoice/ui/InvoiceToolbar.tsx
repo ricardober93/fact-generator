@@ -37,18 +37,24 @@ export function InvoiceToolbar({
   templates,
   templateId,
   status,
-  duplicate,
   mismatch,
+  issued,
+  numero,
+  canPrint,
   onTemplate,
   onSave,
+  onIssue,
 }: {
   templates: ITemplateChoice[]
   templateId: string
   status: string
-  duplicate: boolean
   mismatch: IMismatch
+  issued: boolean
+  numero: string
+  canPrint: boolean
   onTemplate: (id: string) => void
   onSave: () => void
+  onIssue: () => void
 }): VNode {
   return (
     <header class="wb-invoice-toolbar">
@@ -62,6 +68,7 @@ export function InvoiceToolbar({
         id="invoice-template"
         class="btn btn-secondary btn-sm"
         data-action="template"
+        disabled={issued}
         value={templateId}
         onChange={(event) => onTemplate((event.currentTarget as HTMLSelectElement).value)}
       >
@@ -73,9 +80,9 @@ export function InvoiceToolbar({
       </select>
       <MismatchNotice mismatch={mismatch} />
       <span class="wb-toolbar-gap" />
-      {duplicate ? (
-        <span class="badge badge-warning" data-duplicate="true">
-          Número repetido
+      {issued ? (
+        <span class="badge badge-success" data-issued="true">
+          {numero}
         </span>
       ) : null}
       {status ? <span class="badge">{status}</span> : null}
@@ -83,13 +90,21 @@ export function InvoiceToolbar({
         type="button"
         class="btn btn-secondary btn-sm"
         data-action="print"
+        disabled={!canPrint}
         onClick={() => window.print()}
       >
         Imprimir
       </button>
-      <button type="button" class="btn btn-sm" data-action="save" onClick={onSave}>
-        Guardar
-      </button>
+      {issued ? null : (
+        <button type="button" class="btn btn-secondary btn-sm" data-action="save" onClick={onSave}>
+          Guardar
+        </button>
+      )}
+      {issued ? null : (
+        <button type="button" class="btn btn-sm" data-action="issue" onClick={onIssue}>
+          Emitir
+        </button>
+      )}
       <SignOutButton />
     </header>
   )

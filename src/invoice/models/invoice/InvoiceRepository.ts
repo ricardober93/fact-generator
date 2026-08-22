@@ -1,18 +1,47 @@
-import { CrudRepository, CustomError, Locker, repository } from '@wabot-dev/framework'
+import { CrudRepository, CustomError, Locker, query, repository } from '@wabot-dev/framework'
+import { isDocType, type IDocType } from '../docType'
+import { chooseRange, type IRangeRejection } from '../numberRange/chooseRange'
+import { NumberRangeRepository } from '../numberRange/NumberRangeRepository'
 import { assertDataSatisfiesTemplate } from '../requiredData'
 import { TemplateRepository } from '../template/TemplateRepository'
-import { Invoice, type IInvoiceRecord } from './Invoice'
+import { checkArithmetic, type IArithmeticIssue } from './checkArithmetic'
+import { Invoice, type ICorrectedDocument, type IInvoiceRecord } from './Invoice'
 
 export interface IInvoiceInput {
   templateId: string
   data: IInvoiceRecord
   items: IInvoiceRecord[]
   params?: Record<string, string>
+  docType?: IDocType
+  corrects?: ICorrectedDocument
+  correctionReason?: string
 }
 
 export type ISaveInvoiceResult =
   | { status: 'saved'; invoice: Invoice }
   | { status: 'conflict'; invoice: Invoice }
+
+export type IIssueRejection =
+  | IRangeRejection
+  | 'ARITHMETIC_MISMATCH'
+  | 'NUMBER_ALREADY_USED'
+  | 'MISSING_REASON'
+  | 'CORRECTED_NOT_FOUND'
+  | 'CORRECTED_NOT_ISSUED'
+
+export type IIssueInvoiceResult =
+  | { status: 'issued'; invoice: Invoice }
+  | { status: 'rejected'; reason: IIssueRejection; issues: IArithmeticIssue[] }
+
+export interface IIssueInvoiceInput {
+  number?: number
+  prefix?: string
+  at?: number
+}
+
+function rejected(reason: IIssueRejection, issues: IArithmeticIssue[] = []): IIssueInvoiceResult {
+  return { status: 'rejected', reason, issues }
+}
 
 function unknownTemplate(templateId: string): CustomError {
   return new CustomError({
@@ -20,6 +49,24 @@ function unknownTemplate(templateId: string): CustomError {
     humanMessage: 'Esa plantilla no existe.',
     code: 'TEMPLATE_NOT_FOUND',
     httpCode: 404,
+  })
+}
+
+function alreadyIssued(): CustomError {
+  return new CustomError({
+    message: 'An issued document cannot be written again',
+    humanMessage: 'Una factura emitida ya no se puede modificar.',
+    code: 'INVOICE_ALREADY_ISSUED',
+    httpCode: 409,
+  })
+}
+
+function notIssued(): CustomError {
+  return new CustomError({
+    message: 'Only an issued document can be corrected',
+    humanMessage: 'Solo se puede corregir una factura ya emitida.',
+    code: 'INVOICE_NOT_ISSUED',
+    httpCode: 409,
   })
 }
 
@@ -36,6 +83,7 @@ function notFound(): CustomError {
 export class InvoiceRepository extends CrudRepository<Invoice> {
   constructor(
     private readonly templates: TemplateRepository,
+    private readonly ranges: NumberRangeRepository,
     private readonly locker: Locker,
   ) {
     super()
@@ -43,9 +91,16 @@ export class InvoiceRepository extends CrudRepository<Invoice> {
 
   declare findAll: () => Promise<Invoice[]>
 
+  @query() declare findByDocTypeAndPrefixAndNumber: (
+    docType: IDocType,
+    prefix: string,
+    number: number,
+  ) => Promise<Invoice[]>
+
   async createInvoice(input: IInvoiceInput): Promise<Invoice> {
     const checked = await this.checked(input)
-    const invoice = new Invoice({ ...checked, rev: 1 })
+    const docType = isDocType(input.docType) ? input.docType : 'factura'
+    const invoice = new Invoice({ ...checked, rev: 1, docType, corrects: input.corrects })
     await this.create(invoice)
     return invoice
   }
@@ -65,6 +120,7 @@ export class InvoiceRepository extends CrudRepository<Invoice> {
     return this.locker.withKey(`invoice:${id}`).run(async () => {
       const invoice = await this.find(id)
       if (!invoice) throw notFound()
+      if (invoice.issued) throw alreadyIssued()
       if (invoice.rev !== expectedRev) return { status: 'conflict', invoice }
       invoice.applyRevision(checked)
       await this.update(invoice)
@@ -72,10 +128,79 @@ export class InvoiceRepository extends CrudRepository<Invoice> {
     })
   }
 
-  async findByNumero(numero: string): Promise<Invoice[]> {
-    if (typeof numero !== 'string' || numero.length === 0) return []
-    const all = await this.findAll()
-    return all.filter((invoice) => invoice.numero === numero)
+  async issueInvoice(id: string, input: IIssueInvoiceInput = {}): Promise<IIssueInvoiceResult> {
+    if (typeof id !== 'string' || id.length === 0) {
+      throw new CustomError({ message: 'Invoice id is required', httpCode: 400 })
+    }
+    const at = Number.isFinite(input.at) ? (input.at as number) : Date.now()
+    return this.locker.withKey(`invoice:${id}`).run(async () => {
+      const invoice = await this.find(id)
+      if (!invoice) throw notFound()
+      if (invoice.issued) return { status: 'issued', invoice }
+      const issues = checkArithmetic(invoice.invoiceData, invoice.invoiceItems)
+      if (issues.length > 0) return rejected('ARITHMETIC_MISMATCH', issues)
+      const correction = await this.checkCorrection(invoice)
+      if (correction) return rejected(correction)
+      const ranges = await this.ranges.findByDocType(invoice.docType)
+      const choice = chooseRange({ ranges, at, number: input.number, prefix: input.prefix })
+      if (choice.status === 'rejected') return rejected(choice.reason)
+      return this.stamp(invoice, choice.range.id, { ...input, at })
+    })
+  }
+
+  private async stamp(
+    invoice: Invoice,
+    rangeId: string,
+    input: IIssueInvoiceInput & { at: number },
+  ): Promise<IIssueInvoiceResult> {
+    return this.locker.withKey(`range:${rangeId}`).run(async () => {
+      const range = await this.ranges.findOrThrow(rangeId)
+      const choice = chooseRange({ ranges: [range], ...input })
+      if (choice.status === 'rejected') return rejected(choice.reason)
+      if (await this.isTaken(invoice.docType, range.prefix, choice.number)) {
+        return rejected('NUMBER_ALREADY_USED')
+      }
+      range.advancePast(choice.number)
+      await this.ranges.update(range)
+      invoice.applyIssue({ prefix: range.prefix, number: choice.number, issuedAt: input.at })
+      await this.update(invoice)
+      return { status: 'issued', invoice }
+    })
+  }
+
+  private async checkCorrection(invoice: Invoice): Promise<IIssueRejection | null> {
+    if (invoice.docType !== 'notaCredito') return null
+    if (invoice.correctionReason.trim().length === 0) return 'MISSING_REASON'
+    const corrected = invoice.corrects
+    if (!corrected) return 'CORRECTED_NOT_FOUND'
+    const target = await this.find(corrected.id)
+    if (!target) return 'CORRECTED_NOT_FOUND'
+    return target.issued ? null : 'CORRECTED_NOT_ISSUED'
+  }
+
+  async createCreditNoteFor(invoiceId: string): Promise<Invoice> {
+    const target = await this.find(invoiceId)
+    if (!target) throw notFound()
+    if (!target.issued || target.number === null) throw notIssued()
+    return this.createInvoice({
+      templateId: target.templateId,
+      data: target.invoiceData,
+      items: target.invoiceItems,
+      params: target.params,
+      docType: 'notaCredito',
+      corrects: { id: target.id, prefix: target.prefix, number: target.number },
+    })
+  }
+
+  async deleteDraft(invoice: Invoice): Promise<void> {
+    if (!invoice) throw notFound()
+    if (invoice.issued) throw alreadyIssued()
+    await this.delete(invoice)
+  }
+
+  private async isTaken(docType: IDocType, prefix: string, number: number): Promise<boolean> {
+    const sharing = await this.findByDocTypeAndPrefixAndNumber(docType, prefix, number)
+    return sharing.length > 0
   }
 
   private async checked(input: IInvoiceInput): Promise<{
@@ -83,6 +208,7 @@ export class InvoiceRepository extends CrudRepository<Invoice> {
     data: IInvoiceRecord
     items: IInvoiceRecord[]
     params: Record<string, string>
+    correctionReason?: string
   }> {
     if (!input || typeof input.templateId !== 'string' || input.templateId.length === 0) {
       throw new CustomError({ message: 'Template id is required', httpCode: 400 })
@@ -99,6 +225,7 @@ export class InvoiceRepository extends CrudRepository<Invoice> {
       data,
       items: input.items,
       params: input.params ?? {},
+      correctionReason: input.correctionReason,
     }
   }
 }

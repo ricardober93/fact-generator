@@ -140,8 +140,39 @@ Consecuencia de la falta de proyección de columnas: los logos van en su **propi
 
 ## 7. Decisiones cerradas
 
-- Documento **presentacional**, no fiscal. Sin XML, firma digital, CUFE ni catálogos
-  SRI/DIAN/CFDI.
+- La **plantilla** es presentacional; el **documento emitido** es un registro fiscal. La
+  línea está exactamente aquí:
+
+  | Dentro                                                    | Fuera                   |
+  | --------------------------------------------------------- | ----------------------- |
+  | Estado `borrador` → `emitida`, con transición explícita   | XML                     |
+  | Consecutivo desde un `NumberRange` con prefijo y vigencia | Firma digital           |
+  | Congelación de los datos al emitir                        | CUFE                    |
+  | Comprobación de que la aritmética cuadra al emitir        | QR                      |
+  | Nota de crédito con motivo, en vez de anulación           | Catálogos SRI/DIAN/CFDI |
+
+  Entró lo que **no se puede añadir después** sin reescribir documentos ya entregados a un
+  cliente. Lo de la derecha es aditivo: se calcula sobre los datos congelados que ya
+  garantiza lo de la izquierda.
+
+  Corolario que **no** cambia: la factura se sigue repintando con la plantilla **en el
+  estado en que esté**, también si está emitida. Lo congelado son los datos, no el diseño —
+  el papel es la representación, el registro son los datos—. Lo único que el diseño no
+  puede hacer es dejar un documento emitido sin un dato obligatorio: entonces no se
+  imprime, en vez de imprimirse incompleto.
+
+- **Anular no existe**: ni acción, ni estado `anulada`, ni borrado de un emitido. Lo único
+  que cambia el efecto de un documento entregado es una **nota de crédito** que lo
+  referencia y que exige un motivo. Un estado que se cambia con un botón es una edición de
+  un documento entregado con otro nombre; la corrección deja los dos documentos, los dos
+  numerados y los dos inmutables.
+- **Repartir la numeración entre cajas no necesita modelo**: es darle a cada una su propio
+  rango **disjunto con el mismo prefijo**, que la regla de no solapamiento ya permite. Sin
+  entidad `CashRegister`, sin campo «punto de emisión», sin ceder tramos.
+- **La idempotencia de emitir es la identidad del borrador**, no una clave: emitir es
+  siempre «emite este borrador», y un documento ya emitido se devuelve tal cual sin consumir
+  otro consecutivo. Una clave explícita solo hará falta cuando alguien pueda crear y emitir
+  en una sola llamada.
 - PDF **solo por impresión del navegador**. No habrá Chrome headless, ni Gotenberg, ni
   endpoint de PDF.
 - Embebido **solo por el producto propio**. Sin multi-tenant, sin API keys, sin tokens
@@ -158,6 +189,10 @@ Consecuencia de la falta de proyección de columnas: los logos van en su **propi
   coincide. El conflicto viaja como **valor** (`{ status: 'conflict', rev }` con `200`), no
   como excepción, porque `callAction` descarta el estado HTTP y el `code` y solo propaga el
   mensaje: deducir un conflicto del texto ata el comportamiento a una redacción concreta.
+  Por la misma razón, **los rechazos de la emisión también viajan como valor** tipado
+  (`{ status: 'rejected', reason }`): sin rango, rango agotado o caducado, número ocupado o
+  fuera de rango, prefijo ambiguo, aritmética que no cuadra. Solo lo excepcional —escribir
+  sobre una emitida, un documento que no existe— lanza.
 
 ### Seguridad
 

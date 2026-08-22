@@ -5,14 +5,12 @@ export interface ISaveReply {
   status?: string
   id: string
   rev: number
-  duplicate: boolean
 }
 
 export interface ISaveState {
   id: string | null
   rev: number
   status: string
-  duplicate: boolean
 }
 
 export function nextSaveState(current: ISaveState, reply: ISaveReply): ISaveState {
@@ -20,5 +18,5 @@ export function nextSaveState(current: ISaveState, reply: ISaveReply): ISaveStat
   if (reply.status === 'conflict') {
     return { ...current, rev: reply.rev, status: CONFLICT_MESSAGE }
   }
-  return { id: reply.id, rev: reply.rev, status: SAVED_MESSAGE, duplicate: reply.duplicate }
+  return { id: reply.id, rev: reply.rev, status: SAVED_MESSAGE }
 }

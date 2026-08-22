@@ -13,7 +13,8 @@ import { RequireSession } from '../auth/RequireSession'
 import { assetsFor } from './embedAssets'
 import { AssetRepository } from './models/asset/AssetRepository'
 import type { Invoice, IInvoiceRecord } from './models/invoice/Invoice'
-import { InvoiceRepository } from './models/invoice/InvoiceRepository'
+import type { IArithmeticIssue } from './models/invoice/checkArithmetic'
+import { InvoiceRepository, type IIssueRejection } from './models/invoice/InvoiceRepository'
 import { Template } from './models/template/Template'
 import { TemplateRepository } from './models/template/TemplateRepository'
 import { dataFit, templateAccepts, type IDataFit } from './render/dataFit'
@@ -58,8 +59,25 @@ export interface ISaveInvoiceReply {
   status: 'saved' | 'conflict'
   id: string
   rev: number
-  duplicate: boolean
 }
+
+export class IssueInvoiceDto {
+  @isString()
+  @isNotEmpty()
+  id!: string
+
+  @isOptional()
+  @isString()
+  prefix?: string
+
+  @isOptional()
+  @isNumber()
+  number?: number
+}
+
+export type IIssueInvoiceReply =
+  | { status: 'issued'; numero: string; rev: number }
+  | { status: 'rejected'; reason: IIssueRejection; issues: IArithmeticIssue[] }
 
 export class NewInvoiceDto {
   @isOptional()
@@ -107,6 +125,8 @@ export async function versionOfInvoice({ id }: { id: string }): Promise<string> 
     items: invoice.invoiceItems,
     params: invoice.params,
     templateId: invoice.templateId,
+    status: invoice.status,
+    number: invoice.number,
     doc: chosen ? chosen.doc : null,
     pool: templates.map((template) => [template.id, template.name, template.rev]),
   })
@@ -176,26 +196,27 @@ export class InvoiceController {
   }
 
   private async reply(status: 'saved' | 'conflict', invoice: Invoice): Promise<ISaveInvoiceReply> {
-    return {
-      status,
-      id: invoice.id,
-      rev: invoice.rev,
-      duplicate: status === 'saved' ? await this.isDuplicate(invoice) : false,
+    return { status, id: invoice.id, rev: invoice.rev }
+  }
+
+  @action()
+  async issue(input: IssueInvoiceDto): Promise<IIssueInvoiceReply> {
+    const result = await this.invoices.issueInvoice(input.id, {
+      prefix: input.prefix,
+      number: input.number,
+    })
+    if (result.status === 'rejected') {
+      return { status: 'rejected', reason: result.reason, issues: result.issues }
     }
+    return { status: 'issued', numero: result.invoice.numero, rev: result.invoice.rev }
   }
 
   @action()
   async remove(input: InvoiceIdDto) {
     const invoice = await this.invoices.find(input.id)
     if (!invoice) throw notFound()
-    await this.invoices.delete(invoice)
+    await this.invoices.deleteDraft(invoice)
     return redirect('/invoices')
-  }
-
-  private async isDuplicate(invoice: Invoice): Promise<boolean> {
-    if (!invoice.numero) return false
-    const sharing = await this.invoices.findByNumero(invoice.numero)
-    return sharing.some((other) => other.id !== invoice.id)
   }
 
   private async editor(
@@ -211,6 +232,8 @@ export class InvoiceController {
       <InvoiceEditor
         id={invoice ? invoice.id : null}
         rev={invoice ? invoice.rev : 0}
+        issued={invoice ? invoice.issued : false}
+        numero={invoice ? invoice.numero : ''}
         templateId={template.id}
         doc={template.doc}
         data={data}

@@ -1,6 +1,6 @@
 const CENTS_PER_UNIT = 100
 
-function toCents(amount: unknown): number {
+export function toCents(amount: unknown): number {
   const value = typeof amount === 'number' ? amount : Number(amount)
   if (!Number.isFinite(value)) return 0
   return Math.round(value * CENTS_PER_UNIT)
