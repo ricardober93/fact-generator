@@ -9,7 +9,7 @@ estar vacío.
 La serie es una clave que la numeración **no interpreta**: parte los rangos por ella y nada más. Quien
 la usa decide qué significa —facturación numera las series `factura` y `notaCredito`—, de modo que
 numerar remisiones o recibos más adelante no obliga a tocar la numeración. Es la misma regla de
-opacidad que rige para una referencia de catálogo, aplicada hacia dentro.
+opacidad que rige entre aplicaciones, aplicada entre módulos.
 
 Es la forma que ya tiene una resolución de numeración, de modo que activar la facturación
 electrónica más adelante no obliga a cambiar el modelo.
@@ -24,7 +24,7 @@ electrónica más adelante no obliga a cambiar el modelo.
 - **WHEN** se intenta crear un rango cuyo último consecutivo es menor que el primero
 - **THEN** la creación falla y no queda ningún rango guardado
 
-#### Scenario: La numeración no valida el vocabulario ajeno
+#### Scenario: La numeración no valida un vocabulario ajeno
 
 - **WHEN** se crea un rango para una serie que la numeración nunca ha visto
 - **THEN** se crea igual, porque la serie es una clave y no una lista cerrada
@@ -53,8 +53,7 @@ propio tramo disjunto—, sin ningún mecanismo adicional.
 
 #### Scenario: El mismo tramo para otro tipo de documento sí vale
 
-- **WHEN** existe un rango de la serie de facturas de 1 a 999 y se crea uno de la serie de notas de
-  crédito de 1 a 999
+- **WHEN** existe un rango de facturas de 1 a 999 y se crea uno de notas de crédito de 1 a 999
 - **THEN** los dos quedan guardados
 
 ## RENAMED Requirements
