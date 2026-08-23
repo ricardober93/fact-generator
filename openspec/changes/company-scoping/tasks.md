@@ -45,29 +45,29 @@ congelado, sin tocar la identidad. Los grupos 5 a 8 son la segunda.
 
 ## 5. Los usuarios y la empresa activa
 
-- [ ] 5.1 `models/user/User.ts` y su repositorio: correo único, hash con `Password`, rol y empresa
-- [ ] 5.2 Semilla del primer administrador desde `AUTH_EMAIL`/`AUTH_PASSWORD` cuando no hay ningún
+- [x] 5.1 `models/user/User.ts` y su repositorio: correo único, hash con `Password`, rol y empresa
+- [x] 5.2 Semilla del primer administrador desde `AUTH_EMAIL`/`AUTH_PASSWORD` cuando no hay ningún
       usuario; con usuarios, ignorarlas. Sin `JWT_SECRET` la aplicación sigue sin arrancar
-- [ ] 5.3 `AuthCredentials` comprueba contra el repositorio en vez de contra el entorno, conservando
+- [x] 5.3 `AuthCredentials` comprueba contra el repositorio en vez de contra el entorno, conservando
       intacto el mensaje que no dice qué parte falló y el límite de intentos por origen
-- [ ] 5.4 La sesión lleva identificador, rol y **empresa activa**; un usuario dado de baja deja de
+- [x] 5.4 La sesión lleva identificador, rol y **empresa activa**; un usuario dado de baja deja de
       entrar
-- [ ] 5.5 Acción de cambiar de empresa: comprueba la pertenencia y **vuelve a firmar la cookie**. La
+- [x] 5.5 Acción de cambiar de empresa: comprueba la pertenencia y **vuelve a firmar la cookie**. La
       empresa activa viaja dentro del token, nunca en una cookie aparte ni en el cliente
 - [ ] 5.6 Selector de empresa en la cabecera, visible solo si el usuario pertenece a más de una, y
       con aviso antes de cambiar si hay un borrador sin guardar
-- [ ] 5.7 Tests: entra con lo suyo; correo repetido no se crea; la contraseña no se guarda en claro;
+- [x] 5.7 Tests: entra con lo suyo; correo repetido no se crea; la contraseña no se guarda en claro;
       el primer arranque siembra y el segundo no toca nada; el usuario de baja no entra; cambiar de
       empresa cambia lo que devuelve el listado; cambiar a una empresa ajena se rechaza y no toca la
       activa; con una sola empresa no aparece el selector
 
 ## 6. Los roles
 
-- [ ] 6.1 Middleware `RequireRole`, del mismo estilo que `RequireSession`, aplicado por ruta
-- [ ] 6.2 Repartir los tres roles según la tabla de la decisión 7: documentos para cajero,
+- [x] 6.1 Middleware `RequireRole`, del mismo estilo que `RequireSession`, aplicado por ruta
+- [x] 6.2 Repartir los tres roles según la tabla de la decisión 7: documentos para cajero,
       numeración, plantillas, assets, usuarios y empresa solo para administrador
-- [ ] 6.3 Quitarse el último rol de administrador —o darse de baja siendo el último— se rechaza
-- [ ] 6.4 Tests: el cajero emite y no crea rangos; lectura ve e imprime y no escribe; una acción
+- [x] 6.3 Quitarse el último rol de administrador —o darse de baja siendo el último— se rechaza
+- [x] 6.4 Tests: el cajero emite y no crea rangos; lectura ve e imprime y no escribe; una acción
       reservada se rechaza **antes** de tocar el dominio; sin sesión responde como cualquier ruta
       protegida, sin revelar si el rol habría bastado
 
@@ -85,7 +85,7 @@ congelado, sin tocar la identidad. Los grupos 5 a 8 son la segunda.
 - [ ] 8.1 `applyIssue` estampa quién emite, con su nombre, y el documento lo muestra
 - [ ] 8.2 `versionOfInvoice`: añadir empresa y emisor congelado a lo que se hashea, para que cambiar
       la empresa no sirva una página vieja de un borrador
-- [ ] 8.3 Actualizar ARCHITECTURE.md: la identidad deja de venir del entorno y el emisor deja de ser
+- [x] 8.3 Actualizar ARCHITECTURE.md: la identidad deja de venir del entorno y el emisor deja de ser
       texto libre
 - [ ] 8.4 Recorrido a mano: crear empresa, crear usuarios de los tres roles, comprobar con cada uno
       qué puede y qué no, emitir con el cajero y ver su nombre en el documento, crear una segunda
