@@ -156,17 +156,7 @@ Un bloque **nunca** guarda un color literal: guarda una referencia a token (`@pr
 bloque, y por eso el template declara su propio schema de `params` — el contrato del embed
 vive en el documento, no en el código del controlador.
 
-## 5. Lo que NO se construye
-
-|                                                  | Por qué                                                                                                                                                                                                                                       |
-| ------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `shared/` sin criterio de entrada                | El cajón de sastre es el resultado de no tener puerta, no de tener carpeta. Existe `kernel/` **con** puerta: sin dominio, dos consumidores ya existentes, sin estado ni IO, y su llegada tiene que borrar código. Ver `src/kernel/README.md`. |
-| Capa de servicios que **reenvía** al repositorio | Un controlador puede inyectar el repositorio. Distinto es el servicio que **orquesta varios** agregados —`Issuance` recibe dos repositorios y un `Locker`—: ese sí. La diferencia se ve en el constructor.                                    |
-| Test de arquitectura                             | La regla que importa ya la obliga el build (§1).                                                                                                                                                                                              |
-| Interfaces con una sola implementación           | Se añade la interfaz cuando aparezca la segunda.                                                                                                                                                                                              |
-| Event bus, CQRS, DTOs por capa, monorepo         | Nada de esto resuelve un problema que tengamos.                                                                                                                                                                                               |
-
-## 5b. La frontera: las mismas reglas dentro y fuera
+## 5. La frontera: las mismas reglas dentro y fuera
 
 Cuatro reglas gobiernan cómo habla este sistema con lo que no es él. Rigen igual entre dos
 aplicaciones separadas por la red y entre dos módulos del mismo proceso, y por eso sacar un
@@ -192,7 +182,48 @@ cuando `InvoiceRepository` necesitó elegir un rango, la respuesta no fue expone
 `chooseRange`: fue que numbering expusiera la capacidad —«asígname un número»— con la
 comprobación de número ocupado entrando como callback.
 
-## 6. Restricciones verificadas del framework
+## 6. Fiscal y presentación: dónde está la línea
+
+La **plantilla** es presentacional; el **documento emitido** es un registro fiscal, y la línea
+está exactamente aquí:
+
+| Dentro                                                   | Fuera                   |
+| -------------------------------------------------------- | ----------------------- |
+| Estado `borrador` → `emitida`, con transición explícita  | XML                     |
+| Consecutivo desde un rango con prefijo y vigencia        | Firma digital           |
+| Congelación de los datos, el emisor y el autor al emitir | CUFE                    |
+| Comprobación de que la aritmética cuadra al emitir       | QR                      |
+| Nota de crédito con motivo, en vez de anulación          | Catálogos SRI/DIAN/CFDI |
+
+Entró lo que **no se puede añadir después** sin reescribir documentos ya entregados a un
+cliente. Lo de la derecha es aditivo: se calcula sobre los datos congelados que garantiza lo
+de la izquierda.
+
+**Se sigue repintando con la plantilla actual**, también lo emitido: lo congelado son los
+datos, no el diseño. El papel es la representación; el registro son los datos. Lo único que
+el diseño no puede hacer es dejar un documento emitido sin un dato obligatorio: entonces no
+se imprime, en vez de imprimirse incompleto.
+
+**Anular no existe**: ni acción, ni estado `anulada`, ni borrado de un emitido. Lo único que
+cambia el efecto de un documento entregado es una nota de crédito que lo referencia y exige
+un motivo. Un estado que se cambia con un botón es una edición de un documento entregado con
+otro nombre; la corrección deja los dos documentos, numerados e inmutables.
+
+**Hay caminos que escribe el sistema** —el número y el emisor— y no se le exigen a la
+persona: no son campos del formulario y la validación de datos obligatorios los salta. En el
+handoff sí se exigen, porque allí los pone quien llama.
+
+## 7. Lo que NO se construye
+
+|                                                  | Por qué                                                                                                                                                                                                                                       |
+| ------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `shared/` sin criterio de entrada                | El cajón de sastre es el resultado de no tener puerta, no de tener carpeta. Existe `kernel/` **con** puerta: sin dominio, dos consumidores ya existentes, sin estado ni IO, y su llegada tiene que borrar código. Ver `src/kernel/README.md`. |
+| Capa de servicios que **reenvía** al repositorio | Un controlador puede inyectar el repositorio. Distinto es el servicio que **orquesta varios** agregados —`Issuance` recibe dos repositorios y un `Locker`—: ese sí. La diferencia se ve en el constructor.                                    |
+| Test de arquitectura                             | La regla que importa ya la obliga el build (§1).                                                                                                                                                                                              |
+| Interfaces con una sola implementación           | Se añade la interfaz cuando aparezca la segunda.                                                                                                                                                                                              |
+| Event bus, CQRS, DTOs por capa, monorepo         | Nada de esto resuelve un problema que tengamos.                                                                                                                                                                                               |
+
+## 8. Restricciones verificadas del framework
 
 | Restricción                                                                                                                                         | Origen                    |
 | --------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------- |
@@ -211,84 +242,48 @@ holgado y el límite nunca estorba.
 Consecuencia de la falta de proyección de columnas: los logos van en su **propia entidad**
 `Asset`, nunca incrustados en el JSON del template, que se lee en cada listado.
 
-## 7. Decisiones cerradas
+## 9. Decisiones cerradas
 
 > Esta lista está **duplicada** en el bloque `context:` de `openspec/config.yaml`, que es lo
 > que se inyecta como contexto en cada artefacto de OpenSpec. Si cambias una decisión, cambia
 > las dos. Allí está el **qué** en una línea; aquí está el **porqué**.
+>
+> Lo que necesita más de tres líneas para explicarse **deja de ser una viñeta y se convierte
+> en sección**. Sin esa puerta esta lista vuelve a ser el cajón de sastre que ya fue una vez.
 
-- La **plantilla** es presentacional; el **documento emitido** es un registro fiscal. La
-  línea está exactamente aquí:
-
-  | Dentro                                                    | Fuera                   |
-  | --------------------------------------------------------- | ----------------------- |
-  | Estado `borrador` → `emitida`, con transición explícita   | XML                     |
-  | Consecutivo desde un `NumberRange` con prefijo y vigencia | Firma digital           |
-  | Congelación de los datos al emitir                        | CUFE                    |
-  | Comprobación de que la aritmética cuadra al emitir        | QR                      |
-  | Nota de crédito con motivo, en vez de anulación           | Catálogos SRI/DIAN/CFDI |
-
-  Entró lo que **no se puede añadir después** sin reescribir documentos ya entregados a un
-  cliente. Lo de la derecha es aditivo: se calcula sobre los datos congelados que ya
-  garantiza lo de la izquierda.
-
-  Corolario que **no** cambia: la factura se sigue repintando con la plantilla **en el
-  estado en que esté**, también si está emitida. Lo congelado son los datos, no el diseño —
-  el papel es la representación, el registro son los datos—. Lo único que el diseño no
-  puede hacer es dejar un documento emitido sin un dato obligatorio: entonces no se
-  imprime, en vez de imprimirse incompleto.
-
-- **Anular no existe**: ni acción, ni estado `anulada`, ni borrado de un emitido. Lo único
-  que cambia el efecto de un documento entregado es una **nota de crédito** que lo
-  referencia y que exige un motivo. Un estado que se cambia con un botón es una edición de
-  un documento entregado con otro nombre; la corrección deja los dos documentos, los dos
-  numerados y los dos inmutables.
-- **Repartir la numeración entre cajas no necesita modelo**: es darle a cada una su propio
-  rango **disjunto con el mismo prefijo**, que la regla de no solapamiento ya permite. Sin
-  entidad `CashRegister`, sin campo «punto de emisión», sin ceder tramos.
-- **La idempotencia de emitir es la identidad del borrador**, no una clave: emitir es
-  siempre «emite este borrador», y un documento ya emitido se devuelve tal cual sin consumir
-  otro consecutivo. Una clave explícita solo hará falta cuando alguien pueda crear y emitir
-  en una sola llamada.
-- PDF **solo por impresión del navegador**. No habrá Chrome headless, ni Gotenberg, ni
-  endpoint de PDF.
-- Embebido **solo por el producto propio**. Sin multi-tenant, sin API keys, sin tokens
-  firmados por tenant. El embed **no** puede ser `static`. **Acuñar** un handoff
-  (`POST /embed/_action/prepare`) exige sesión; **renderizarlo** (`GET /embed/:token`) solo
-  exige el token, porque esa vista se pinta dentro del iframe de otro producto, donde
-  nuestra cookie puede no existir. El token es inadivinable y caduca a los diez minutos.
-- Logos en **base64 en la base de datos**, en la entidad `Asset`. Sin S3, sin disco, sin
-  ruta estática.
-- Los datos del documento **nunca** viajan en el query string del iframe.
-- Escritura con **bloqueo optimista** por campo `rev`: el JSONB se reescribe entero, así
-  que sin `rev` la última escritura gana en silencio. Lo cumplen **`Template` y `Invoice`**:
-  ambas comparan la revisión recibida dentro de un `Locker` por id y no escriben nada si no
-  coincide. El conflicto viaja como **valor** (`{ status: 'conflict', rev }` con `200`), no
-  como excepción, porque `callAction` descarta el estado HTTP y el `code` y solo propaga el
-  mensaje: deducir un conflicto del texto ata el comportamiento a una redacción concreta.
-  Por la misma razón, **los rechazos de la emisión también viajan como valor** tipado
-  (`{ status: 'rejected', reason }`): sin rango, rango agotado o caducado, número ocupado o
-  fuera de rango, prefijo ambiguo, aritmética que no cuadra. Solo lo excepcional —escribir
-  sobre una emitida, un documento que no existe— lanza.
-
-- **La identidad vive en la base, no en el entorno.** `AUTH_EMAIL` y `AUTH_PASSWORD` son la
-  **semilla** del primer administrador: si no hay ningún usuario se crea con ellas, y si los
-  hay se ignoran. El primer arranque sigue costando dos variables y nadie tiene que crear un
-  usuario para empezar. Sin `JWT_SECRET` la aplicación no arranca, y eso no cambia.
-- **La empresa activa es un dato de la sesión firmada.** Un usuario pertenece a una o varias
-  empresas; la sesión dice en cuál opera y cambiarla vuelve a firmar la cookie tras comprobar
-  la pertenencia. Nunca una cookie aparte ni estado del cliente: con dos sitios donde vive la
-  respuesta, manda la que alguien olvidó comprobar.
-- **Tres roles, y las guardas van por ruta.** Administrador, cajero y lectura. Se aplican con
-  `@uiMiddleware` sobre la acción concreta, no sobre el controlador, porque el de facturas
-  mezcla ver —que puede todo el mundo— con emitir —que no—. Nadie puede quedarse sin
-  administrador: degradar o dar de baja al último de una empresa se rechaza.
-- **El emisor no se teclea.** Sale de la empresa, el servidor lo escribe en `emisor.*` al
-  guardar y lo congela al emitir. Junto con el número son los **caminos que escribe el
-  sistema**: no se ofrecen como campos y tampoco se le exigen a la persona al validar. En el
-  handoff sí se exigen, porque allí los pone quien llama.
-- **La numeración numera series y rangos con dueño**, y no interpreta ninguna de las dos
-  claves. Es la regla de opacidad de §5b aplicada entre módulos.
+- **PDF solo por impresión del navegador.** Sin Chrome headless, sin Gotenberg, sin endpoint
+  de PDF, sin fuentes embebidas.
+- **Los logos van en base64 en la base**, en la entidad `Asset`. Sin S3, sin disco, sin ruta
+  estática, porque el adaptador PG no proyecta columnas (§8) y un asset pesado en el template
+  se leería en cada listado.
+- **Los datos del documento nunca viajan en el query string** del iframe: las URLs quedan en
+  los logs de cualquier proxy y se filtran por `Referer`.
+- **Escritura con bloqueo optimista por `rev`.** El JSONB se reescribe entero, así que sin
+  `rev` la última escritura gana en silencio. El conflicto viaja como **valor**, no como
+  excepción; los rechazos de la emisión, igual.
+- **El embed lo consume el propio producto, y aún sin claves de aplicación.** Multi-empresa
+  sí existe (§9), pero la frontera con otras apps sigue siendo por URL configurada y sin
+  autenticación: cuando aparezca un origen que la exija, se le añade una cabecera. El embed
+  **nunca** puede marcarse `@view({ static })`, porque una vista estática se salta los
+  middlewares y serviría el documento de un cliente a cualquier visitante.
+- **Acuñar un handoff exige sesión; renderizarlo solo exige el token**, que es inadivinable y
+  caduca a los diez minutos. La vista se pinta dentro del iframe de otro producto, donde
+  nuestra cookie puede no existir.
+- **La identidad vive en la base.** `AUTH_EMAIL`/`AUTH_PASSWORD` son solo la semilla del
+  primer administrador: el primer arranque sigue costando dos variables.
+- **La empresa activa es un dato de la sesión firmada**, nunca una cookie aparte ni estado
+  del cliente: con dos sitios donde vive la respuesta, manda la que alguien olvidó comprobar.
+- **Tres roles —administrador, cajero, lectura— con guardas por ruta**, no por controlador,
+  porque el de facturas mezcla ver con emitir.
+- **El alcance por empresa es un parámetro obligatorio**, no una inyección: `@repository`
+  aplica `singleton()`, así que un repositorio con la sesión dentro se quedaría con la
+  empresa del primer visitante. Olvidar el parámetro no compila.
+- **Repartir la numeración entre cajas no necesita modelo**: cada una recibe su propio rango
+  disjunto con el mismo prefijo.
+- **La idempotencia de emitir es la identidad del borrador**, no una clave: emitir es siempre
+  «emite este borrador», y uno ya emitido se devuelve tal cual.
+- **La numeración numera series con dueño y no interpreta ninguna de las dos claves**, que es
+  la regla de opacidad de §5 aplicada hacia dentro.
 
 ### Seguridad
 

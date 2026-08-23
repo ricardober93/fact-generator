@@ -14,6 +14,10 @@ context: |
 
   ## Decisiones cerradas (no reabrir sin decisión explícita)
 
+  OJO AL ESCRIBIR TAREAS: la arquitectura vive en DOS archivos, ARCHITECTURE.md y este.
+  Una tarea que diga solo «actualizar ARCHITECTURE.md» deja este briefing atrás, y este es
+  el que se inyecta aquí. Ya pasó una vez. Escribe siempre «ARCHITECTURE.md y config.yaml».
+
   - La PLANTILLA es presentacional; el DOCUMENTO EMITIDO es un registro fiscal. Dentro:
     estado borrador/emitida, consecutivo desde un rango con prefijo y vigencia, congelación
     de los datos al emitir, nota de crédito con motivo en vez de anulación. Fuera: XML,
@@ -56,19 +60,21 @@ context: |
   Layout canónico del framework: carpeta de feature con los controladores en su raíz,
   models/ dentro, ui/ para páginas y componentes.
 
-    src/invoice/
-      TemplateController.tsx   @uiController({ path: '/templates', app: true })
-      EmbedController.tsx      @uiController('/embed')
-      render/                  isomorfo: render(doc, data, params, assets) -> JSX.
-                               Corre en Node (SSR del embed) y en el navegador (preview
-                               del editor). Es el MISMO código: el preview no puede
-                               divergir del render porque no hay dos implementaciones.
-        render.tsx  bind.ts  theme.ts  blocks/
-      models/
-        template/Template.ts + TemplateRepository.ts
-        asset/Asset.ts + AssetRepository.ts
-      ui/
-        pages/  *.island.tsx
+    src/
+      kernel/      paths.ts cents.ts versionKey.ts   lo compartido, con puerta
+      auth/        User + sesión + RequireSession/RequireRole
+      company/     la empresa emisora
+      numbering/   numera series con dueño; no sabe qué es una factura
+      catalog/     origen opcional de líneas (sin CATALOG_URL no existe)
+      invoice/     el documento, su diseño y su emisión
+        Issuance.ts              servicio: emitir y corregir
+        render/                  isomorfo: render(doc, data, params, assets) -> JSX.
+                                 Corre en Node (SSR del embed) y en el navegador
+                                 (preview del editor). Es el MISMO código: el preview
+                                 no puede divergir porque no hay dos implementaciones.
+        models/  ui/  templates/
+
+    Cada módulo declara su superficie en app.ts. Nadie importa el interior de otro.
 
   UNA sola regla de dependencia, y no necesita test: render/ importa solo
   '@wabot-dev/framework/ui', nunca la raíz '@wabot-dev/framework'. /ui es la única
@@ -77,8 +83,10 @@ context: |
   La herramienta ya es el test: no se escribe un test de arquitectura.
 
   Corolario: render/ no puede usar Money (big.js, vive en la raíz) ni los validadores
-  @isString. Formatea con Intl.NumberFormat, que es nativo e isomorfo. La aritmética
-  con Money vive en los controladores.
+  @isString. Formatea con Intl.NumberFormat, que es nativo e isomorfo. La aritmética de
+  importes usa los enteros de céntimos de kernel/cents.ts —los mismos que calcula el
+  formulario— y no Money: comprobar con otra aritmética podría discrepar en el borde del
+  redondeo y rechazar un documento correcto.
 
   SIN barrels index.ts: el runner importa todos los archivos de src/ por los
   side-effects de los decoradores, así que un barrel no encapsula nada que nadie pueda
