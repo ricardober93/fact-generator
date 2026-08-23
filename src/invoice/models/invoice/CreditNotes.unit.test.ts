@@ -3,7 +3,7 @@ import test from 'node:test'
 import { container, InMemoryLocker, Locker } from '@wabot-dev/framework'
 import { useMemoryRepositories } from '@wabot-dev/framework/testing'
 import { findTemplatePreset } from '../../templates/presets'
-import { NumberRangeRepository } from '../numberRange/NumberRangeRepository'
+import { NumberRangeRepository } from '../../../numbering/app'
 import { TemplateRepository } from '../template/TemplateRepository'
 import { InvoiceRepository, type IIssueInvoiceResult } from './InvoiceRepository'
 import type { Invoice, IInvoiceRecord } from './Invoice'
@@ -41,7 +41,7 @@ test.before(async () => {
   const template = await container.resolve(TemplateRepository).createTemplate('Diseño', doc)
   templateId = template.id
   await ranges().createRange({
-    docType: 'factura',
+    series: 'factura',
     prefix: 'FE',
     from: 1,
     to: 999,
@@ -100,7 +100,7 @@ test('without a reason a credit note is not issued', async () => {
   const invoice = await issuedInvoice()
   const note = await invoices().createCreditNoteFor(invoice.id)
   await ranges().createRange({
-    docType: 'notaCredito',
+    series: 'notaCredito',
     prefix: 'NC',
     from: 1,
     to: 99,
@@ -117,12 +117,12 @@ test('without a reason a credit note is not issued', async () => {
 test('a credit note takes its own consecutive and leaves the invoice range alone', async () => {
   const invoice = await issuedInvoice()
   const note = await withReason(await invoices().createCreditNoteFor(invoice.id), 'Anulación total')
-  const invoicePointer = (await ranges().findByDocType('factura'))[0]?.next
+  const invoicePointer = (await ranges().findBySeries('factura'))[0]?.next
 
   const issued = issuedBy(await invoices().issueInvoice(note.id, { prefix: 'NC', at: AT }))
 
   assert.equal(issued.prefix, 'NC')
-  assert.equal((await ranges().findByDocType('factura'))[0]?.next, invoicePointer)
+  assert.equal((await ranges().findBySeries('factura'))[0]?.next, invoicePointer)
 })
 
 test('issuing a credit note leaves the corrected invoice untouched', async () => {

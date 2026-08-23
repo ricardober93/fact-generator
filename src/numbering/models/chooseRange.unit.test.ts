@@ -7,7 +7,7 @@ const AT = Date.UTC(2026, 5, 15)
 
 function range(overrides: Partial<INumberRangeData> = {}): NumberRange {
   return new NumberRange({
-    docType: 'factura',
+    series: 'factura',
     prefix: 'FE',
     from: 1000,
     to: 1999,

@@ -8,9 +8,8 @@ import {
   type VNode,
 } from '@wabot-dev/framework/ui'
 import { RequireSession } from '../auth/RequireSession'
-import { isDocType, type IDocType } from './models/docType'
-import { NumberRangeRepository } from './models/numberRange/NumberRangeRepository'
-import { AppLayout } from './ui/AppLayout'
+import { NumberRangeRepository } from './models/NumberRangeRepository'
+import { AppLayout } from '../invoice/ui/AppLayout'
 import { NumberRangePage } from './ui/NumberRangePage'
 
 const DAY_MS = 24 * 60 * 60 * 1000
@@ -18,7 +17,7 @@ const DAY_MS = 24 * 60 * 60 * 1000
 export class CreateRangeDto {
   @isString()
   @isNotEmpty()
-  docType!: string
+  series!: string
 
   @isOptional()
   @isString()
@@ -50,11 +49,6 @@ function badInput(humanMessage: string): CustomError {
   })
 }
 
-function asDocType(value: string): IDocType {
-  if (!isDocType(value)) throw badInput('Ese tipo de documento no existe.')
-  return value
-}
-
 function asWhole(value: string, label: string): number {
   const parsed = Number(value)
   if (!Number.isInteger(parsed) || parsed < 1) throw badInput(`${label} tiene que ser un entero.`)
@@ -79,7 +73,7 @@ export class NumberRangeController {
   @action()
   async create(input: CreateRangeDto): Promise<UiRedirect> {
     await this.ranges.createRange({
-      docType: asDocType(input.docType),
+      series: input.series,
       prefix: input.prefix ?? '',
       from: asWhole(input.from, 'Desde'),
       to: asWhole(input.to, 'Hasta'),

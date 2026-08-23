@@ -1,12 +1,12 @@
 import { Entity, type IEntityData } from '@wabot-dev/framework'
 import { MISSING, resolvePath, writePath } from '../../../kernel/paths'
+import type { IDocType } from '../docType'
 import {
   INVOICE_CUSTOMER_PATH,
   INVOICE_DATE_PATH,
   INVOICE_NUMBER_PATH,
   INVOICE_TOTAL_PATH,
 } from '../../render/invoiceFields'
-import type { IDocType } from '../docType'
 
 export type IInvoiceValue =
   | string

@@ -1,7 +1,6 @@
 import { CrudRepository, CustomError, Locker, query, repository } from '@wabot-dev/framework'
 import { isDocType, type IDocType } from '../docType'
-import { chooseRange, type IRangeRejection } from '../numberRange/chooseRange'
-import { NumberRangeRepository } from '../numberRange/NumberRangeRepository'
+import { NumberRangeRepository, type IAssignRejection } from '../../../numbering/app'
 import { assertDataSatisfiesTemplate } from '../requiredData'
 import { TemplateRepository } from '../template/TemplateRepository'
 import { checkArithmetic, type IArithmeticIssue } from './checkArithmetic'
@@ -22,9 +21,8 @@ export type ISaveInvoiceResult =
   | { status: 'conflict'; invoice: Invoice }
 
 export type IIssueRejection =
-  | IRangeRejection
+  | IAssignRejection
   | 'ARITHMETIC_MISMATCH'
-  | 'NUMBER_ALREADY_USED'
   | 'MISSING_REASON'
   | 'CORRECTED_NOT_FOUND'
   | 'CORRECTED_NOT_ISSUED'
@@ -141,28 +139,15 @@ export class InvoiceRepository extends CrudRepository<Invoice> {
       if (issues.length > 0) return rejected('ARITHMETIC_MISMATCH', issues)
       const correction = await this.checkCorrection(invoice)
       if (correction) return rejected(correction)
-      const ranges = await this.ranges.findByDocType(invoice.docType)
-      const choice = chooseRange({ ranges, at, number: input.number, prefix: input.prefix })
-      if (choice.status === 'rejected') return rejected(choice.reason)
-      return this.stamp(invoice, choice.range.id, { ...input, at })
-    })
-  }
-
-  private async stamp(
-    invoice: Invoice,
-    rangeId: string,
-    input: IIssueInvoiceInput & { at: number },
-  ): Promise<IIssueInvoiceResult> {
-    return this.locker.withKey(`range:${rangeId}`).run(async () => {
-      const range = await this.ranges.findOrThrow(rangeId)
-      const choice = chooseRange({ ranges: [range], ...input })
-      if (choice.status === 'rejected') return rejected(choice.reason)
-      if (await this.isTaken(invoice.docType, range.prefix, choice.number)) {
-        return rejected('NUMBER_ALREADY_USED')
-      }
-      range.advancePast(choice.number)
-      await this.ranges.update(range)
-      invoice.applyIssue({ prefix: range.prefix, number: choice.number, issuedAt: input.at })
+      const assigned = await this.ranges.assign({
+        series: invoice.docType,
+        at,
+        prefix: input.prefix,
+        number: input.number,
+        isTaken: (prefix, number) => this.isTaken(invoice.docType, prefix, number),
+      })
+      if (assigned.status === 'rejected') return rejected(assigned.reason)
+      invoice.applyIssue({ prefix: assigned.prefix, number: assigned.number, issuedAt: at })
       await this.update(invoice)
       return { status: 'issued', invoice }
     })

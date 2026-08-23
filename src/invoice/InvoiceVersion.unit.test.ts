@@ -4,7 +4,7 @@ import { container, InMemoryLocker, Locker } from '@wabot-dev/framework'
 import { useMemoryRepositories } from '@wabot-dev/framework/testing'
 import { versionOfInvoice } from './InvoiceController'
 import { InvoiceRepository } from './models/invoice/InvoiceRepository'
-import { NumberRangeRepository } from './models/numberRange/NumberRangeRepository'
+import { NumberRangeRepository } from '../numbering/app'
 import { TemplateRepository } from './models/template/TemplateRepository'
 import { invoiceDocumentFixture } from './render/__fixtures__/invoiceDocument'
 import { INVOICE_DATA, INVOICE_ITEMS } from './render/__fixtures__/renderToHtml'
@@ -96,7 +96,7 @@ test('an invoice that does not exist still yields a key instead of throwing', as
 test('issuing changes the key, so no stale page survives it', async () => {
   const ranges = container.resolve(NumberRangeRepository)
   await ranges.createRange({
-    docType: 'factura',
+    series: 'factura',
     prefix: 'VK',
     from: 1,
     to: 99,

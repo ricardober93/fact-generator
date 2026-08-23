@@ -1,8 +1,8 @@
 import { Entity, type IEntityData } from '@wabot-dev/framework'
-import type { IDocType } from '../docType'
 
 export interface INumberRangeData extends IEntityData {
-  docType: IDocType
+  series?: string
+  docType?: string
   prefix: string
   from: number
   to: number
@@ -12,8 +12,8 @@ export interface INumberRangeData extends IEntityData {
 }
 
 export class NumberRange extends Entity<INumberRangeData> {
-  get docType(): IDocType {
-    return this.data.docType
+  get series(): string {
+    return this.data.series ?? this.data.docType ?? ''
   }
 
   get prefix(): string {

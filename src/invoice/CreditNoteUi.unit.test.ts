@@ -6,7 +6,7 @@ import { createSignedInHarness, type ISignedInHarness } from '../auth/__fixtures
 import { InvoiceController } from './InvoiceController'
 import type { Invoice, IInvoiceRecord } from './models/invoice/Invoice'
 import { InvoiceRepository } from './models/invoice/InvoiceRepository'
-import { NumberRangeRepository } from './models/numberRange/NumberRangeRepository'
+import { NumberRangeRepository } from '../numbering/app'
 import { TemplateRepository } from './models/template/TemplateRepository'
 import { findTemplatePreset } from './templates/presets'
 
@@ -33,10 +33,10 @@ before(async () => {
   const doc = findTemplatePreset('chevron-slate')!.build()
   templateId = (await container.resolve(TemplateRepository).createTemplate('Diseño', doc)).id
   const ranges = container.resolve(NumberRangeRepository)
-  for (const docType of ['factura', 'notaCredito'] as const) {
+  for (const series of ['factura', 'notaCredito'] as const) {
     await ranges.createRange({
-      docType,
-      prefix: docType === 'factura' ? 'FE' : 'NC',
+      series,
+      prefix: series === 'factura' ? 'FE' : 'NC',
       from: 1,
       to: 999,
       validFrom: Date.UTC(2020, 0, 1),

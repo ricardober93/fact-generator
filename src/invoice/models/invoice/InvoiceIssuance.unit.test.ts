@@ -3,7 +3,7 @@ import test from 'node:test'
 import { container, InMemoryLocker, Locker } from '@wabot-dev/framework'
 import { useMemoryRepositories } from '@wabot-dev/framework/testing'
 import { findTemplatePreset } from '../../templates/presets'
-import { NumberRangeRepository } from '../numberRange/NumberRangeRepository'
+import { NumberRangeRepository } from '../../../numbering/app'
 import { TemplateRepository } from '../template/TemplateRepository'
 import { InvoiceRepository, type IIssueInvoiceResult } from './InvoiceRepository'
 import type { Invoice, IInvoiceRecord } from './Invoice'
@@ -41,7 +41,7 @@ test.before(async () => {
 
 async function seedRange(prefix: string, from: number, to: number, validTo = VALID_TO) {
   return ranges().createRange({
-    docType: 'factura',
+    series: 'factura',
     prefix,
     from,
     to,

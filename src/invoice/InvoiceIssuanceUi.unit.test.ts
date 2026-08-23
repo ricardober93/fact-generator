@@ -4,10 +4,10 @@ import { container, InMemoryLocker, Locker } from '@wabot-dev/framework'
 import { useMemoryRepositories } from '@wabot-dev/framework/testing'
 import { createSignedInHarness, type ISignedInHarness } from '../auth/__fixtures__/signedIn'
 import { InvoiceController } from './InvoiceController'
-import { NumberRangeController } from './NumberRangeController'
+import { NumberRangeController } from '../numbering/NumberRangeController'
 import type { IInvoiceRecord } from './models/invoice/Invoice'
 import { InvoiceRepository } from './models/invoice/InvoiceRepository'
-import { NumberRangeRepository } from './models/numberRange/NumberRangeRepository'
+import { NumberRangeRepository } from '../numbering/app'
 import { TemplateRepository } from './models/template/TemplateRepository'
 import { findTemplatePreset } from './templates/presets'
 
@@ -34,7 +34,7 @@ before(async () => {
   const doc = findTemplatePreset('chevron-slate')!.build()
   templateId = (await container.resolve(TemplateRepository).createTemplate('Diseño', doc)).id
   await container.resolve(NumberRangeRepository).createRange({
-    docType: 'factura',
+    series: 'factura',
     prefix: 'FE',
     from: 1,
     to: 999,
@@ -117,7 +117,7 @@ test('the numbering screen lists the ranges and creates one', async () => {
   const created = await harness.action(
     '/ranges/_action/create',
     {
-      docType: 'notaCredito',
+      series: 'notaCredito',
       prefix: 'NC',
       from: '1',
       to: '99',
@@ -128,7 +128,7 @@ test('the numbering screen lists the ranges and creates one', async () => {
   )
 
   assert.ok(created.status >= 200)
-  const stored = await container.resolve(NumberRangeRepository).findByDocType('notaCredito')
+  const stored = await container.resolve(NumberRangeRepository).findBySeries('notaCredito')
   assert.equal(stored.length, 1)
   assert.equal(stored[0]?.prefix, 'NC')
 })

@@ -1,8 +1,8 @@
 import type { VNode } from '@wabot-dev/framework/ui'
 import { SignOutButton } from '../../auth/ui/SignOutButton'
-import type { NumberRange } from '../models/numberRange/NumberRange'
+import type { NumberRange } from '../models/NumberRange'
 
-const TYPE_LABELS: Record<string, string> = {
+const SERIES_LABELS: Record<string, string> = {
   factura: 'Factura',
   notaCredito: 'Nota de crédito',
 }
@@ -14,7 +14,7 @@ function day(at: number): string {
 function RangeRow({ range }: { range: NumberRange }): VNode {
   return (
     <tr data-range={range.id} data-exhausted={range.exhausted ? 'true' : 'false'}>
-      <td>{TYPE_LABELS[range.docType] ?? range.docType}</td>
+      <td>{SERIES_LABELS[range.series] ?? range.series}</td>
       <td class="mono">{range.prefix || '—'}</td>
       <td class="mono">
         {range.from} – {range.to}
@@ -63,8 +63,8 @@ export function NumberRangePage({ ranges }: { ranges: NumberRange[] }): VNode {
       <form class="card stack" method="post" action="/ranges/_action/create">
         <h2>Nuevo rango</h2>
         <div class="stack-sm">
-          <label for="range-docType">Tipo de documento</label>
-          <select id="range-docType" name="docType" required>
+          <label for="range-series">Serie</label>
+          <select id="range-series" name="series" required>
             <option value="factura">Factura</option>
             <option value="notaCredito">Nota de crédito</option>
           </select>
