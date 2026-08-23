@@ -64,8 +64,11 @@ Meterlo todo en un despliegue solo consigue que la parte urgente espere a la que
 como están** —están congelados, y congelado significa que tampoco los toca una migración—. La empresa
 se crea a mano y los borradores pasan a leer sus datos de ella.
 
-**`app-auth` se reescribe entero**, no se retoca: «no existe entidad de usuario en la base de datos»
-es un MUST NOT que este cambio elimina.
+**De `app-auth` muere un solo requisito**, no el spec entero: «hay un único operador y sus
+credenciales vienen del entorno». Los otros siete —la cookie `HttpOnly`, las rutas que exigen sesión,
+el destino validado al volver, el mensaje que no dice qué parte falló, el límite de intentos por
+origen, la pantalla pública sin JavaScript y el cierre de sesión— siguen exactamente igual, porque
+describen **cómo** se entra, no **quién** entra. Lo que cambia es de dónde sale la identidad.
 
 **Sin sedes ni cajas.** El brief las pide desde el día 1; siguen sin tener un lector. Repartir la
 numeración entre cajas ya funciona con rangos disjuntos, que es lo único para lo que hacían falta.
