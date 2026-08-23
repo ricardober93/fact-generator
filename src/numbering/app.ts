@@ -1,3 +1,4 @@
+export { NumberRangeController } from './NumberRangeController'
 export {
   NumberRangeRepository,
   type IAssignment,

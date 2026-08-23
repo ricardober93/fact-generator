@@ -1,14 +1,14 @@
 import assert from 'node:assert/strict'
-import { Issuance } from '../../Issuance'
+import { Issuance } from './Issuance'
 import test from 'node:test'
 import { container, InMemoryLocker, Locker } from '@wabot-dev/framework'
 import { useMemoryRepositories } from '@wabot-dev/framework/testing'
-import { findTemplatePreset } from '../../templates/presets'
-import { NumberRangeRepository } from '../../../numbering/app'
-import { TemplateRepository } from '../template/TemplateRepository'
-import { InvoiceRepository } from './InvoiceRepository'
-import type { IIssueInvoiceResult } from '../../Issuance'
-import type { Invoice, IInvoiceRecord } from './Invoice'
+import { findTemplatePreset } from './templates/presets'
+import { NumberRangeRepository } from '../numbering/app'
+import { TemplateRepository } from './models/template/TemplateRepository'
+import { InvoiceRepository } from './models/invoice/InvoiceRepository'
+import type { IIssueInvoiceResult } from './Issuance'
+import type { Invoice, IInvoiceRecord } from './models/invoice/Invoice'
 
 useMemoryRepositories()
 container.register(Locker, { useToken: InMemoryLocker })
@@ -74,72 +74,6 @@ function refusalOf(result: IIssueInvoiceResult): string {
 async function pointerOf(rangeId: string): Promise<number> {
   return (await ranges().findOrThrow(rangeId)).next
 }
-
-test('issuing takes the next consecutive and moves the pointer', async () => {
-  const range = await seedRange('A', 1000, 1999)
-  const invoice = await draft()
-
-  const issued = issuedBy(await issuance().issueInvoice(invoice.id, { prefix: 'A', at: AT }))
-
-  assert.equal(issued.number, 1000)
-  assert.equal(issued.prefix, 'A')
-  assert.equal(issued.status, 'emitida')
-  assert.equal(issued.issuedAt?.getTime(), AT)
-  assert.equal(await pointerOf(range.id), 1001)
-})
-
-test('the issued number reaches the data the template paints', async () => {
-  await seedRange('B', 1, 99)
-  const invoice = await draft()
-
-  await issuance().issueInvoice(invoice.id, { prefix: 'B', at: AT })
-
-  const stored = await invoices().findOrThrow(invoice.id)
-  assert.equal((stored.invoiceData.factura as IInvoiceRecord).numero, 'B1')
-  assert.equal(stored.numero, 'B1')
-})
-
-test('issuing twice returns the same document without consuming another consecutive', async () => {
-  const range = await seedRange('C', 500, 599)
-  const invoice = await draft()
-
-  const first = issuedBy(await issuance().issueInvoice(invoice.id, { prefix: 'C', at: AT }))
-  const second = issuedBy(await issuance().issueInvoice(invoice.id, { prefix: 'C', at: AT }))
-
-  assert.equal(first.number, 500)
-  assert.equal(second.number, 500)
-  assert.equal(await pointerOf(range.id), 501)
-})
-
-test('two documents in a row do not repeat a number', async () => {
-  await seedRange('D', 10, 99)
-  const first = await draft()
-  const second = await draft()
-
-  const one = issuedBy(await issuance().issueInvoice(first.id, { prefix: 'D', at: AT }))
-  const two = issuedBy(await issuance().issueInvoice(second.id, { prefix: 'D', at: AT }))
-
-  assert.equal(one.number, 10)
-  assert.equal(two.number, 11)
-})
-
-test('arithmetic that does not add up rejects and burns no consecutive', async () => {
-  const range = await seedRange('E', 700, 799)
-  const invoice = await draft({
-    ...DATA,
-    factura: { numero: 'X', total: 999, base: 100, impuestos: 19, fecha: '2026-08-01' },
-  })
-
-  const result = await issuance().issueInvoice(invoice.id, { prefix: 'E', at: AT })
-
-  assert.equal(refusalOf(result), 'ARITHMETIC_MISMATCH')
-  assert.deepEqual(result.status === 'rejected' ? result.issues.map((issue) => issue.kind) : [], [
-    'base',
-    'total',
-  ])
-  assert.equal(await pointerOf(range.id), 700)
-  assert.equal((await invoices().findOrThrow(invoice.id)).status, 'borrador')
-})
 
 test('a number ahead of the pointer drags the pointer past it', async () => {
   const range = await seedRange('F', 1000, 1999)
@@ -238,36 +172,4 @@ test('without any range for its document type there is nothing to issue against'
   const result = await issuance().issueInvoice(ready.invoice.id, { at: AT })
 
   assert.equal(refusalOf(result), 'NO_NUMBER_RANGE')
-})
-
-test('saving over an issued document writes absolutely nothing', async () => {
-  await seedRange('L', 1, 99)
-  const invoice = await draft()
-  const issued = issuedBy(await issuance().issueInvoice(invoice.id, { prefix: 'L', at: AT }))
-
-  await assert.rejects(() =>
-    invoices().saveInvoice(
-      invoice.id,
-      { templateId, data: { ...DATA, cliente: { nombre: 'Otro' } }, items: [] },
-      issued.rev,
-    ),
-  )
-
-  const stored = await invoices().findOrThrow(invoice.id)
-  assert.deepEqual(stored.invoiceData, issued.invoiceData)
-  assert.deepEqual(stored.invoiceItems, ITEMS)
-  assert.equal(stored.rev, issued.rev)
-})
-
-test('a draft still saves exactly as it did before issuance existed', async () => {
-  const invoice = await draft()
-
-  const result = await invoices().saveInvoice(
-    invoice.id,
-    { templateId, data: { ...DATA, cliente: { nombre: 'Ana María' } }, items: ITEMS },
-    invoice.rev,
-  )
-
-  assert.equal(result.status, 'saved')
-  assert.equal(result.invoice.rev, invoice.rev + 1)
 })

@@ -9,6 +9,15 @@ import {
   isString,
 } from '@wabot-dev/framework'
 import {
+  InvoiceIdDto,
+  IssueInvoiceDto,
+  NewInvoiceDto,
+  SaveInvoiceDto,
+  type IIssueInvoiceReply,
+  type ISaveInvoiceReply,
+} from './InvoiceDtos'
+import { versionOfInvoice } from './invoiceVersion'
+import {
   action,
   redirect,
   uiController,
@@ -31,71 +40,6 @@ import { AppLayout } from './ui/AppLayout'
 import InvoiceEditor from './ui/InvoiceEditor.island'
 import type { ITemplateChoice } from './ui/InvoiceToolbar'
 import { InvoiceList } from './ui/InvoiceList'
-import { versionKey } from '../kernel/versionKey'
-
-export class InvoiceIdDto {
-  @isString()
-  @isNotEmpty()
-  id!: string
-}
-
-export class SaveInvoiceDto {
-  @isOptional()
-  @isString()
-  id?: string
-
-  @isString()
-  @isNotEmpty()
-  templateId!: string
-
-  @isPresent()
-  data!: IInvoiceRecord
-
-  @isArray()
-  items!: IInvoiceRecord[]
-
-  @isOptional()
-  @isPresent()
-  params?: Record<string, string>
-
-  @isOptional()
-  @isNumber()
-  rev?: number
-
-  @isOptional()
-  @isString()
-  correctionReason?: string
-}
-
-export interface ISaveInvoiceReply {
-  status: 'saved' | 'conflict'
-  id: string
-  rev: number
-}
-
-export class IssueInvoiceDto {
-  @isString()
-  @isNotEmpty()
-  id!: string
-
-  @isOptional()
-  @isString()
-  prefix?: string
-
-  @isOptional()
-  @isNumber()
-  number?: number
-}
-
-export type IIssueInvoiceReply =
-  | { status: 'issued'; numero: string; rev: number }
-  | { status: 'rejected'; reason: IIssueRejection; issues: IArithmeticIssue[] }
-
-export class NewInvoiceDto {
-  @isOptional()
-  @isString()
-  templateId?: string
-}
 
 const NO_MISMATCH: IDataFit = { missing: [], orphan: [] }
 
@@ -125,23 +69,6 @@ function choicesFor(
   const accepted = templates.filter((template) => templateAccepts(template.doc, data, items))
   const pool = accepted.length > 0 ? accepted : templates
   return pool.map((template): ITemplateChoice => ({ id: template.id, name: template.name }))
-}
-
-export async function versionOfInvoice({ id }: { id: string }): Promise<string> {
-  const invoice = await container.resolve(InvoiceRepository).find(id)
-  if (!invoice) return 'missing'
-  const templates = await container.resolve(TemplateRepository).findAll()
-  const chosen = templates.find((template) => template.id === invoice.templateId)
-  return versionKey({
-    data: invoice.invoiceData,
-    items: invoice.invoiceItems,
-    params: invoice.params,
-    templateId: invoice.templateId,
-    status: invoice.status,
-    number: invoice.number,
-    doc: chosen ? chosen.doc : null,
-    pool: templates.map((template) => [template.id, template.name, template.rev]),
-  })
 }
 
 @uiController({ path: '/invoices', app: true, layout: AppLayout, middlewares: [RequireSession] })

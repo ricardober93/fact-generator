@@ -27,7 +27,7 @@ import {
 import { formShapeOf } from './invoiceForm'
 import { issuedMessage, issueRefusal } from './issueOutcome'
 import { nextSaveState, type ISaveReply } from './saveOutcome'
-import type { IIssueInvoiceReply } from '../InvoiceController'
+import type { IIssueInvoiceReply } from '../InvoiceDtos'
 
 const SAVE_URL = actionUrl('/invoices', 'save')
 const ISSUE_URL = actionUrl('/invoices', 'issue')
