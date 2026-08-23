@@ -1,4 +1,5 @@
 import { CustomError, injectable, Locker } from '@wabot-dev/framework'
+import { CompanyRepository } from '../company/app'
 import { NumberRangeRepository, type IAssignRejection } from '../numbering/app'
 import type { IDocType } from './models/docType'
 import { checkArithmetic, type IArithmeticIssue } from './models/invoice/checkArithmetic'
@@ -11,6 +12,7 @@ export type IIssueRejection =
   | 'MISSING_REASON'
   | 'CORRECTED_NOT_FOUND'
   | 'CORRECTED_NOT_ISSUED'
+  | 'NO_COMPANY'
 
 export type IIssueInvoiceResult =
   | { status: 'issued'; invoice: Invoice }
@@ -30,6 +32,7 @@ function rejected(reason: IIssueRejection, issues: IArithmeticIssue[] = []): IIs
 export class Issuance {
   constructor(
     private readonly invoices: InvoiceRepository,
+    private readonly companies: CompanyRepository,
     private readonly ranges: NumberRangeRepository,
     private readonly locker: Locker,
   ) {}
@@ -69,7 +72,10 @@ export class Issuance {
     invoice: Invoice,
     input: IIssueInvoiceInput & { at: number },
   ): Promise<IIssueInvoiceResult> {
+    const company = await this.companies.current()
+    if (!company) return rejected('NO_COMPANY')
     const assigned = await this.ranges.assign({
+      owner: company.id,
       series: invoice.docType,
       at: input.at,
       prefix: input.prefix,
@@ -77,7 +83,12 @@ export class Issuance {
       isTaken: (prefix, number) => this.isTaken(invoice.docType, prefix, number),
     })
     if (assigned.status === 'rejected') return rejected(assigned.reason)
-    invoice.applyIssue({ prefix: assigned.prefix, number: assigned.number, issuedAt: input.at })
+    invoice.applyIssue({
+      prefix: assigned.prefix,
+      number: assigned.number,
+      issuedAt: input.at,
+      issuer: company.issuerFields,
+    })
     await this.invoices.update(invoice)
     return { status: 'issued', invoice }
   }

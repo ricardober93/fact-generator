@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict'
+import { seedCompany } from '../../../company/__fixtures__/seededCompany'
 import { Issuance } from '../../Issuance'
 import test from 'node:test'
 import { container, InMemoryLocker, Locker } from '@wabot-dev/framework'
@@ -41,12 +42,15 @@ function ranges(): NumberRangeRepository {
 }
 
 let templateId = ''
+let companyId = ''
 
 test.before(async () => {
+  companyId = await seedCompany()
   const doc = findTemplatePreset('chevron-slate')!.build()
   const template = await container.resolve(TemplateRepository).createTemplate('Diseño', doc)
   templateId = template.id
   await ranges().createRange({
+    owner: companyId,
     series: 'factura',
     prefix: 'FE',
     from: 1,
@@ -106,6 +110,7 @@ test('without a reason a credit note is not issued', async () => {
   const invoice = await issuedInvoice()
   const note = await issuance().createCreditNoteFor(invoice.id)
   await ranges().createRange({
+    owner: companyId,
     series: 'notaCredito',
     prefix: 'NC',
     from: 1,
@@ -123,12 +128,12 @@ test('without a reason a credit note is not issued', async () => {
 test('a credit note takes its own consecutive and leaves the invoice range alone', async () => {
   const invoice = await issuedInvoice()
   const note = await withReason(await issuance().createCreditNoteFor(invoice.id), 'Anulación total')
-  const invoicePointer = (await ranges().findBySeries('factura'))[0]?.next
+  const invoicePointer = (await ranges().findBySeries(companyId, 'factura'))[0]?.next
 
   const issued = issuedBy(await issuance().issueInvoice(note.id, { prefix: 'NC', at: AT }))
 
   assert.equal(issued.prefix, 'NC')
-  assert.equal((await ranges().findBySeries('factura'))[0]?.next, invoicePointer)
+  assert.equal((await ranges().findBySeries(companyId, 'factura'))[0]?.next, invoicePointer)
 })
 
 test('issuing a credit note leaves the corrected invoice untouched', async () => {

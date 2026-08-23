@@ -7,6 +7,7 @@ import { NumberRangeRepository, type ICreateNumberRangeInput } from './NumberRan
 useMemoryRepositories()
 container.register(Locker, { useToken: InMemoryLocker })
 
+const OWNER = 'empresa-1'
 const VALID_FROM = Date.UTC(2026, 0, 1)
 const VALID_TO = Date.UTC(2026, 11, 31)
 
@@ -16,6 +17,7 @@ function ranges(): NumberRangeRepository {
 
 function input(overrides: Partial<ICreateNumberRangeInput> = {}): ICreateNumberRangeInput {
   return {
+    owner: OWNER,
     series: 'factura',
     prefix: 'FE',
     from: 1000,
@@ -65,14 +67,17 @@ test('an overlapping range is refused and the existing one does not change', asy
   const stored = await ranges().findOrThrow(existing.id)
   assert.equal(stored.from, 1000)
   assert.equal(stored.to, 1999)
-  assert.equal((await ranges().findBySeries('factura')).filter((r) => r.prefix === 'E').length, 1)
+  assert.equal(
+    (await ranges().findBySeries(OWNER, 'factura')).filter((r) => r.prefix === 'E').length,
+    1,
+  )
 })
 
 test('two disjoint spans with the same prefix live together', async () => {
   await ranges().createRange(input({ prefix: 'F', from: 1000, to: 1999 }))
   await ranges().createRange(input({ prefix: 'F', from: 2000, to: 2999 }))
 
-  const stored = (await ranges().findBySeries('factura')).filter((r) => r.prefix === 'F')
+  const stored = (await ranges().findBySeries(OWNER, 'factura')).filter((r) => r.prefix === 'F')
   assert.equal(stored.length, 2)
 })
 
@@ -98,7 +103,7 @@ test('only valid and unexhausted ranges are usable, ordered by their start', asy
     }),
   )
 
-  const usable = await ranges().findUsable('factura', Date.UTC(2026, 5, 15))
+  const usable = await ranges().findUsable(OWNER, 'factura', Date.UTC(2026, 5, 15))
   const spans = usable.filter((range) => range.prefix === 'H').map((range) => range.from)
 
   assert.deepEqual(spans, [2000, 3000])
@@ -107,7 +112,7 @@ test('only valid and unexhausted ranges are usable, ordered by their start', asy
 test('a covering range is found by type, prefix and number', async () => {
   await ranges().createRange(input({ prefix: 'I', from: 5000, to: 5999 }))
 
-  assert.equal((await ranges().findCovering('factura', 'I', 5500)).length, 1)
-  assert.equal((await ranges().findCovering('factura', 'I', 6500)).length, 0)
-  assert.equal((await ranges().findCovering('factura', 'J', 5500)).length, 0)
+  assert.equal((await ranges().findCovering(OWNER, 'factura', 'I', 5500)).length, 1)
+  assert.equal((await ranges().findCovering(OWNER, 'factura', 'I', 6500)).length, 0)
+  assert.equal((await ranges().findCovering(OWNER, 'factura', 'J', 5500)).length, 0)
 })

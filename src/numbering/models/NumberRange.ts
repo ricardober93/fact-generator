@@ -1,6 +1,7 @@
 import { Entity, type IEntityData } from '@wabot-dev/framework'
 
 export interface INumberRangeData extends IEntityData {
+  owner?: string
   series?: string
   docType?: string
   prefix: string
@@ -12,6 +13,10 @@ export interface INumberRangeData extends IEntityData {
 }
 
 export class NumberRange extends Entity<INumberRangeData> {
+  get owner(): string {
+    return this.data.owner ?? ''
+  }
+
   get series(): string {
     return this.data.series ?? this.data.docType ?? ''
   }

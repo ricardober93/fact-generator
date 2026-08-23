@@ -3,6 +3,7 @@ import { chooseRange, type IRangeRejection } from './chooseRange'
 import { NumberRange } from './NumberRange'
 
 export interface ICreateNumberRangeInput {
+  owner: string
   series: string
   prefix: string
   from: number
@@ -42,7 +43,10 @@ function assertValidity(validFrom: number, validTo: number): void {
 }
 
 function assertInput(input: ICreateNumberRangeInput): void {
-  if (!input || typeof input.series !== 'string' || input.series.length === 0) {
+  if (!input || typeof input.owner !== 'string' || input.owner.length === 0) {
+    throw invalid('A range must declare its owner', 'El rango tiene que tener dueño.')
+  }
+  if (typeof input.series !== 'string' || input.series.length === 0) {
     throw invalid('A range must declare its series', 'El rango tiene que declarar su serie.')
   }
   if (typeof input.prefix !== 'string') {
@@ -59,6 +63,7 @@ export type IAssignment =
   | { status: 'rejected'; reason: IAssignRejection }
 
 export interface IAssignInput {
+  owner: string
   series: string
   at: number
   prefix?: string
@@ -76,7 +81,7 @@ export class NumberRangeRepository extends CrudRepository<NumberRange> {
 
   async createRange(input: ICreateNumberRangeInput): Promise<NumberRange> {
     assertInput(input)
-    const key = `numberRange:${input.series}:${input.prefix}`
+    const key = `numberRange:${input.owner}:${input.series}:${input.prefix}`
     return this.locker.withKey(key).run(async () => {
       await this.assertNoOverlap(input)
       const range = new NumberRange({ ...input, next: input.from })
@@ -85,27 +90,33 @@ export class NumberRangeRepository extends CrudRepository<NumberRange> {
     })
   }
 
-  async findBySeries(series: string): Promise<NumberRange[]> {
+  async findBySeries(owner: string, series: string): Promise<NumberRange[]> {
+    if (typeof owner !== 'string' || owner.length === 0) return []
     if (typeof series !== 'string' || series.length === 0) return []
     const all = await this.findAll()
-    return all.filter((range) => range.series === series)
+    return all.filter((range) => range.owner === owner && range.series === series)
   }
 
-  async findUsable(series: string, at: number): Promise<NumberRange[]> {
-    const ranges = await this.findBySeries(series)
+  async findUsable(owner: string, series: string, at: number): Promise<NumberRange[]> {
+    const ranges = await this.findBySeries(owner, series)
     return ranges
       .filter((range) => range.usableAt(at))
       .sort((first, second) => first.from - second.from)
   }
 
-  async findCovering(series: string, prefix: string, number: number): Promise<NumberRange[]> {
+  async findCovering(
+    owner: string,
+    series: string,
+    prefix: string,
+    number: number,
+  ): Promise<NumberRange[]> {
     if (typeof prefix !== 'string') return []
-    const ranges = await this.findBySeries(series)
+    const ranges = await this.findBySeries(owner, series)
     return ranges.filter((range) => range.prefix === prefix && range.covers(number))
   }
 
   private async assertNoOverlap(input: ICreateNumberRangeInput): Promise<void> {
-    const siblings = await this.findBySeries(input.series)
+    const siblings = await this.findBySeries(input.owner, input.series)
     const clash = siblings.find(
       (range) => range.prefix === input.prefix && range.overlaps(input.from, input.to),
     )
@@ -119,7 +130,7 @@ export class NumberRangeRepository extends CrudRepository<NumberRange> {
   }
 
   async assign(input: IAssignInput): Promise<IAssignment> {
-    const ranges = await this.findBySeries(input.series)
+    const ranges = await this.findBySeries(input.owner, input.series)
     const choice = chooseRange({ ranges, at: input.at, number: input.number, prefix: input.prefix })
     if (choice.status === 'rejected') return { status: 'rejected', reason: choice.reason }
     return this.locker.withKey(`range:${choice.range.id}`).run(async () => {

@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict'
+import { seedCompany } from '../company/__fixtures__/seededCompany'
 import { Issuance } from './Issuance'
 import test, { before } from 'node:test'
 import { container, InMemoryLocker, Locker } from '@wabot-dev/framework'
@@ -24,6 +25,7 @@ const ADDS_UP: IInvoiceRecord = {
 
 let invoiceId = ''
 let templateId = ''
+let companyId = ''
 
 function issuance(): Issuance {
   return container.resolve(Issuance)
@@ -38,6 +40,7 @@ function templates(): TemplateRepository {
 }
 
 before(async () => {
+  companyId = await seedCompany()
   const template = await templates().createTemplate('Base', invoiceDocumentFixture())
   templateId = template.id
   const invoice = await invoices().createInvoice({
@@ -101,6 +104,7 @@ test('an invoice that does not exist still yields a key instead of throwing', as
 test('issuing changes the key, so no stale page survives it', async () => {
   const ranges = container.resolve(NumberRangeRepository)
   await ranges.createRange({
+    owner: companyId,
     series: 'factura',
     prefix: 'VK',
     from: 1,

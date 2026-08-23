@@ -30,6 +30,7 @@ export interface IIssueStamp {
   prefix: string
   number: number
   issuedAt: number
+  issuer: Record<string, string>
 }
 
 export interface IInvoiceSummary {
@@ -52,6 +53,8 @@ export interface IInvoiceData extends IEntityData {
   issuedAt?: number
   corrects?: ICorrectedDocument
   correctionReason?: string
+  companyId?: string
+  issuer?: Record<string, string>
 }
 
 export class Invoice extends Entity<IInvoiceData> {
@@ -85,6 +88,14 @@ export class Invoice extends Entity<IInvoiceData> {
 
   get issuedAt(): Date | null {
     return this.data.issuedAt === undefined ? null : new Date(this.data.issuedAt)
+  }
+
+  get companyId(): string {
+    return this.data.companyId ?? ''
+  }
+
+  get issuer(): Record<string, string> {
+    return this.data.issuer ?? {}
   }
 
   get corrects(): ICorrectedDocument | null {
@@ -148,6 +159,7 @@ export class Invoice extends Entity<IInvoiceData> {
     this.update({
       status: 'emitida',
       docType: this.docType,
+      issuer: stamp.issuer,
       prefix: stamp.prefix,
       number: stamp.number,
       issuedAt: stamp.issuedAt,

@@ -2,6 +2,7 @@ import type { IArithmeticIssue } from '../models/invoice/checkArithmetic'
 import type { IIssueRejection } from '../Issuance'
 
 const REFUSALS: Record<IIssueRejection, string> = {
+  NO_COMPANY: 'No hay empresa emisora. Créala antes de emitir: un documento dice quién lo emite.',
   NO_NUMBER_RANGE: 'No hay ningún rango de numeración. Crea uno antes de emitir.',
   RANGE_EXHAUSTED: 'El rango de numeración se agotó.',
   RANGE_EXPIRED: 'El rango de numeración está fuera de vigencia.',

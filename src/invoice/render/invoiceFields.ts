@@ -1,3 +1,4 @@
+export const ISSUER_ROOT = 'emisor'
 export const INVOICE_NUMBER_PATH = 'factura.numero'
 export const INVOICE_CUSTOMER_PATH = 'cliente.nombre'
 export const INVOICE_DATE_PATH = 'factura.fecha'

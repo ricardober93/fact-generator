@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict'
+import { seedCompany } from '../company/__fixtures__/seededCompany'
 import { Issuance } from './Issuance'
 import test from 'node:test'
 import { container, InMemoryLocker, Locker } from '@wabot-dev/framework'
@@ -38,8 +39,10 @@ function ranges(): NumberRangeRepository {
 }
 
 let templateId = ''
+let companyId = ''
 
 test.before(async () => {
+  companyId = await seedCompany()
   const doc = findTemplatePreset('chevron-slate')!.build()
   const template = await container.resolve(TemplateRepository).createTemplate('Diseño', doc)
   templateId = template.id
@@ -47,6 +50,7 @@ test.before(async () => {
 
 async function seedRange(prefix: string, from: number, to: number, validTo = VALID_TO) {
   return ranges().createRange({
+    owner: companyId,
     series: 'factura',
     prefix,
     from,

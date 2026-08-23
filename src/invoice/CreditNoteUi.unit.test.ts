@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict'
+import { seedCompany } from '../company/__fixtures__/seededCompany'
 import { Issuance } from './Issuance'
 import test, { after, before } from 'node:test'
 import { container, InMemoryLocker, Locker } from '@wabot-dev/framework'
@@ -24,6 +25,7 @@ const ITEMS: IInvoiceRecord[] = [{ descripcion: 'Producto uno', total: 70 }]
 
 let harness: ISignedInHarness
 let templateId = ''
+let companyId = ''
 
 function issuance(): Issuance {
   return container.resolve(Issuance)
@@ -34,12 +36,14 @@ function invoices(): InvoiceRepository {
 }
 
 before(async () => {
+  companyId = await seedCompany()
   harness = await createSignedInHarness([InvoiceController])
   const doc = findTemplatePreset('chevron-slate')!.build()
   templateId = (await container.resolve(TemplateRepository).createTemplate('Diseño', doc)).id
   const ranges = container.resolve(NumberRangeRepository)
   for (const series of ['factura', 'notaCredito'] as const) {
     await ranges.createRange({
+      owner: companyId,
       series,
       prefix: series === 'factura' ? 'FE' : 'NC',
       from: 1,
