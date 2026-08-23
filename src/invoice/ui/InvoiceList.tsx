@@ -16,13 +16,54 @@ function correctedIdsOf(invoices: Invoice[]): Set<string> {
   return corrected
 }
 
-export function InvoiceList({ invoices }: { invoices: Invoice[] }): VNode {
+export interface ICompanyChoice {
+  id: string
+  name: string
+}
+
+function CompanyPicker({
+  companies,
+  activeId,
+}: {
+  companies: ICompanyChoice[]
+  activeId: string
+}): VNode | null {
+  if (companies.length < 2) return null
+  return (
+    <form method="post" action="/login/_action/switchCompany" data-company-picker="true">
+      <label class="wb-visually-hidden" for="active-company">
+        Empresa
+      </label>
+      <select id="active-company" name="companyId" class="btn btn-secondary btn-sm">
+        {companies.map((company) => (
+          <option key={company.id} value={company.id} selected={company.id === activeId}>
+            {company.name}
+          </option>
+        ))}
+      </select>
+      <button type="submit" class="btn btn-sm">
+        Cambiar
+      </button>
+    </form>
+  )
+}
+
+export function InvoiceList({
+  invoices,
+  companies = [],
+  activeCompanyId = '',
+}: {
+  invoices: Invoice[]
+  companies?: ICompanyChoice[]
+  activeCompanyId?: string
+}): VNode {
   const corrected = correctedIdsOf(invoices)
   return (
     <main class="container stack-lg">
       <div class="row">
         <h1>Facturas</h1>
         <span class="wb-toolbar-gap" />
+        <CompanyPicker companies={companies} activeId={activeCompanyId} />
         <SignOutButton />
       </div>
 

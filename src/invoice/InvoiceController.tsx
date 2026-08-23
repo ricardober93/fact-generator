@@ -28,7 +28,9 @@ import {
   type VNode,
 } from '@wabot-dev/framework/ui'
 import { Auth } from '@wabot-dev/framework'
+import { UserRepository } from '../auth/models/UserRepository'
 import type { ISession } from '../auth/session'
+import { CompanyRepository } from '../company/app'
 import { RequireSession } from '../auth/RequireSession'
 import { assetsFor } from './embedAssets'
 import { AssetRepository } from './models/asset/AssetRepository'
@@ -43,7 +45,7 @@ import type { IDocument } from './render/document'
 import { AppLayout } from './ui/AppLayout'
 import InvoiceEditor from './ui/InvoiceEditor.island'
 import type { ITemplateChoice } from './ui/InvoiceToolbar'
-import { InvoiceList } from './ui/InvoiceList'
+import { InvoiceList, type ICompanyChoice } from './ui/InvoiceList'
 
 const NO_MISMATCH: IDataFit = { missing: [], orphan: [] }
 
@@ -81,9 +83,18 @@ export class InvoiceController {
     private readonly invoices: InvoiceRepository,
     private readonly issuance: Issuance,
     private readonly auth: Auth<ISession>,
+    private readonly users: UserRepository,
+    private readonly companies: CompanyRepository,
     private readonly templates: TemplateRepository,
     private readonly assets: AssetRepository,
   ) {}
+
+  private async myCompanies(): Promise<ICompanyChoice[]> {
+    const user = await this.users.find(this.auth.require().userId)
+    if (!user || user.companyIds.length < 2) return []
+    const mine = await Promise.all(user.companyIds.map((id) => this.companies.find(id)))
+    return mine.filter((one) => one !== null).map((one) => ({ id: one.id, name: one.name }))
+  }
 
   private get companyId(): string {
     return this.auth.require().companyId
@@ -92,7 +103,13 @@ export class InvoiceController {
   @view({ title: 'Facturas' })
   async index(): Promise<VNode> {
     const stored = await this.invoices.findAllFor(this.companyId)
-    return <InvoiceList invoices={stored} />
+    return (
+      <InvoiceList
+        invoices={stored}
+        companies={await this.myCompanies()}
+        activeCompanyId={this.companyId}
+      />
+    )
   }
 
   @view({ path: 'new', title: 'Nueva factura' })

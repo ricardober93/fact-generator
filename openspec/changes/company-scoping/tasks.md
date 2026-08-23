@@ -7,7 +7,7 @@ congelado, sin tocar la identidad. Los grupos 5 a 8 son la segunda.
       opcional. Getters, sin lógica de emisión
 - [x] 1.2 `models/company/CompanyRepository.ts`: `createCompany` que exige NIT y razón social;
       `current()` que devuelve la única empresa o `null`
-- [ ] 1.3 **Espera a la segunda entrega**: pertenencia y empresa activa necesitan que exista `User`,
+- [x] 1.3 **Espera a la segunda entrega**: pertenencia y empresa activa necesitan que exista `User`,
       así que la comprobación se hace en el grupo 5 junto con la sesión
 - [x] 1.4 Tests: se crea con sus datos; sin NIT o sin razón social no se crea; crearla deja al
       creador dentro y operando en ella
@@ -54,7 +54,7 @@ congelado, sin tocar la identidad. Los grupos 5 a 8 son la segunda.
       entrar
 - [x] 5.5 Acción de cambiar de empresa: comprueba la pertenencia y **vuelve a firmar la cookie**. La
       empresa activa viaja dentro del token, nunca en una cookie aparte ni en el cliente
-- [ ] 5.6 Selector de empresa en la cabecera, visible solo si el usuario pertenece a más de una, y
+- [x] 5.6 Selector de empresa en la cabecera, visible solo si el usuario pertenece a más de una, y
       con aviso antes de cambiar si hay un borrador sin guardar
 - [x] 5.7 Tests: entra con lo suyo; correo repetido no se crea; la contraseña no se guarda en claro;
       el primer arranque siembra y el segundo no toca nada; el usuario de baja no entra; cambiar de
@@ -73,21 +73,21 @@ congelado, sin tocar la identidad. Los grupos 5 a 8 son la segunda.
 
 ## 7. El alcance de la empresa
 
-- [ ] 7.1 Filtrar por **la empresa activa de la sesión** en el repositorio —facturas, plantillas,
+- [x] 7.1 Filtrar por **la empresa activa de la sesión** en el repositorio —facturas, plantillas,
       assets y rangos—, no en los controladores. Se escribe así desde el grupo 2, no al final: es el
       mismo coste y evita repasar cada consulta cuando aparezca la segunda empresa
-- [ ] 7.2 Pedir por identificador un documento de otra empresa responde como si no existiera
-- [ ] 7.3 Tests que **siembran dos empresas** aunque la aplicación solo permita crear una, para que el
+- [x] 7.2 Pedir por identificador un documento de otra empresa responde como si no existiera
+- [x] 7.3 Tests que **siembran dos empresas** aunque la aplicación solo permita crear una, para que el
       filtro tenga algo que filtrar
 
 ## 8. El autor y el cierre
 
-- [ ] 8.1 `applyIssue` estampa quién emite, con su nombre, y el documento lo muestra
-- [ ] 8.2 `versionOfInvoice`: añadir empresa y emisor congelado a lo que se hashea, para que cambiar
+- [x] 8.1 `applyIssue` estampa quién emite, con su nombre, y el documento lo muestra
+- [x] 8.2 `versionOfInvoice`: añadir empresa y emisor congelado a lo que se hashea, para que cambiar
       la empresa no sirva una página vieja de un borrador
 - [x] 8.3 Actualizar ARCHITECTURE.md: la identidad deja de venir del entorno y el emisor deja de ser
       texto libre
-- [ ] 8.4 Recorrido a mano: crear empresa, crear usuarios de los tres roles, comprobar con cada uno
+- [ ] 8.4 **Pendiente de manos humanas.** Recorrido a mano: crear empresa, crear usuarios de los tres roles, comprobar con cada uno
       qué puede y qué no, emitir con el cajero y ver su nombre en el documento, crear una segunda
       empresa y comprobar que al cambiar a ella no se ve ni un documento de la primera
-- [ ] 8.5 Puerta de calidad completa: `npm run tsc`, `npm run test:unit` y `npm run fmt:check`
+- [x] 8.5 Puerta de calidad completa: `npm run tsc`, `npm run test:unit` y `npm run fmt:check`

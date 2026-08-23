@@ -15,6 +15,8 @@ export async function versionOfInvoice({ id }: { id: string }): Promise<string> 
     templateId: invoice.templateId,
     status: invoice.status,
     number: invoice.number,
+    companyId: invoice.companyId,
+    issuer: invoice.issuer,
     doc: chosen ? chosen.doc : null,
     pool: templates.map((template) => [template.id, template.name, template.rev]),
   })

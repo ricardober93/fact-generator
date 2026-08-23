@@ -1,4 +1,5 @@
-import { CustomError, injectable, Locker } from '@wabot-dev/framework'
+import { Auth, CustomError, injectable, Locker } from '@wabot-dev/framework'
+import type { ISession } from '../auth/session'
 import { CompanyRepository } from '../company/app'
 import { NumberRangeRepository, type IAssignRejection } from '../numbering/app'
 import type { IDocType } from './models/docType'
@@ -35,6 +36,7 @@ export class Issuance {
     private readonly companies: CompanyRepository,
     private readonly ranges: NumberRangeRepository,
     private readonly locker: Locker,
+    private readonly auth: Auth<ISession>,
   ) {}
 
   async issueInvoice(id: string, input: IIssueInvoiceInput = {}): Promise<IIssueInvoiceResult> {
@@ -89,9 +91,16 @@ export class Issuance {
       number: assigned.number,
       issuedAt: input.at,
       issuer: company.issuerFields,
+      issuedBy: this.who(),
     })
     await this.invoices.update(invoice)
     return { status: 'issued', invoice }
+  }
+
+  private who(): { userId: string; name: string } {
+    if (!this.auth.isAssigned()) return { userId: '', name: '' }
+    const session = this.auth.require()
+    return { userId: session.userId, name: session.email }
   }
 
   private async checkCorrection(invoice: Invoice): Promise<IIssueRejection | null> {
