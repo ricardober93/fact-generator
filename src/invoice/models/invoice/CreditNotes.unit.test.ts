@@ -1,11 +1,13 @@
 import assert from 'node:assert/strict'
+import { Issuance } from '../../Issuance'
 import test from 'node:test'
 import { container, InMemoryLocker, Locker } from '@wabot-dev/framework'
 import { useMemoryRepositories } from '@wabot-dev/framework/testing'
 import { findTemplatePreset } from '../../templates/presets'
 import { NumberRangeRepository } from '../../../numbering/app'
 import { TemplateRepository } from '../template/TemplateRepository'
-import { InvoiceRepository, type IIssueInvoiceResult } from './InvoiceRepository'
+import { InvoiceRepository } from './InvoiceRepository'
+import type { IIssueInvoiceResult } from '../../Issuance'
 import type { Invoice, IInvoiceRecord } from './Invoice'
 
 useMemoryRepositories()
@@ -25,6 +27,10 @@ const ITEMS: IInvoiceRecord[] = [
   { descripcion: 'Producto uno', total: 40 },
   { descripcion: 'Producto dos', total: 30 },
 ]
+
+function issuance(): Issuance {
+  return container.resolve(Issuance)
+}
 
 function invoices(): InvoiceRepository {
   return container.resolve(InvoiceRepository)
@@ -62,7 +68,7 @@ function refusalOf(result: IIssueInvoiceResult): string {
 
 async function issuedInvoice(): Promise<Invoice> {
   const draft = await invoices().createInvoice({ templateId, data: DATA, items: ITEMS })
-  return issuedBy(await invoices().issueInvoice(draft.id, { prefix: 'FE', at: AT }))
+  return issuedBy(await issuance().issueInvoice(draft.id, { prefix: 'FE', at: AT }))
 }
 
 async function withReason(note: Invoice, reason: string): Promise<Invoice> {
@@ -82,7 +88,7 @@ async function withReason(note: Invoice, reason: string): Promise<Invoice> {
 test('a credit note starts from the invoice it corrects', async () => {
   const invoice = await issuedInvoice()
 
-  const note = await invoices().createCreditNoteFor(invoice.id)
+  const note = await issuance().createCreditNoteFor(invoice.id)
 
   assert.equal(note.docType, 'notaCredito')
   assert.equal(note.status, 'borrador')
@@ -93,12 +99,12 @@ test('a credit note starts from the invoice it corrects', async () => {
 test('a draft cannot be corrected, only an issued document', async () => {
   const draft = await invoices().createInvoice({ templateId, data: DATA, items: ITEMS })
 
-  await assert.rejects(() => invoices().createCreditNoteFor(draft.id))
+  await assert.rejects(() => issuance().createCreditNoteFor(draft.id))
 })
 
 test('without a reason a credit note is not issued', async () => {
   const invoice = await issuedInvoice()
-  const note = await invoices().createCreditNoteFor(invoice.id)
+  const note = await issuance().createCreditNoteFor(invoice.id)
   await ranges().createRange({
     series: 'notaCredito',
     prefix: 'NC',
@@ -108,7 +114,7 @@ test('without a reason a credit note is not issued', async () => {
     validTo: VALID_TO,
   })
 
-  const result = await invoices().issueInvoice(note.id, { prefix: 'NC', at: AT })
+  const result = await issuance().issueInvoice(note.id, { prefix: 'NC', at: AT })
 
   assert.equal(refusalOf(result), 'MISSING_REASON')
   assert.equal((await invoices().findOrThrow(note.id)).status, 'borrador')
@@ -116,10 +122,10 @@ test('without a reason a credit note is not issued', async () => {
 
 test('a credit note takes its own consecutive and leaves the invoice range alone', async () => {
   const invoice = await issuedInvoice()
-  const note = await withReason(await invoices().createCreditNoteFor(invoice.id), 'Anulación total')
+  const note = await withReason(await issuance().createCreditNoteFor(invoice.id), 'Anulación total')
   const invoicePointer = (await ranges().findBySeries('factura'))[0]?.next
 
-  const issued = issuedBy(await invoices().issueInvoice(note.id, { prefix: 'NC', at: AT }))
+  const issued = issuedBy(await issuance().issueInvoice(note.id, { prefix: 'NC', at: AT }))
 
   assert.equal(issued.prefix, 'NC')
   assert.equal((await ranges().findBySeries('factura'))[0]?.next, invoicePointer)
@@ -132,9 +138,9 @@ test('issuing a credit note leaves the corrected invoice untouched', async () =>
     status: invoice.status,
     number: invoice.number,
   }
-  const note = await withReason(await invoices().createCreditNoteFor(invoice.id), 'Devolución')
+  const note = await withReason(await issuance().createCreditNoteFor(invoice.id), 'Devolución')
 
-  await invoices().issueInvoice(note.id, { prefix: 'NC', at: AT })
+  await issuance().issueInvoice(note.id, { prefix: 'NC', at: AT })
 
   const stored = await invoices().findOrThrow(invoice.id)
   assert.deepEqual(stored.invoiceData, before.data)
@@ -144,9 +150,9 @@ test('issuing a credit note leaves the corrected invoice untouched', async () =>
 
 test('the credit note prints its own number, not the one it copied', async () => {
   const invoice = await issuedInvoice()
-  const note = await withReason(await invoices().createCreditNoteFor(invoice.id), 'Rebaja')
+  const note = await withReason(await issuance().createCreditNoteFor(invoice.id), 'Rebaja')
 
-  const issued = issuedBy(await invoices().issueInvoice(note.id, { prefix: 'NC', at: AT }))
+  const issued = issuedBy(await issuance().issueInvoice(note.id, { prefix: 'NC', at: AT }))
 
   assert.equal(issued.numero, `NC${issued.number}`)
   assert.equal((issued.invoiceData.factura as IInvoiceRecord).numero, `NC${issued.number}`)
@@ -155,7 +161,7 @@ test('the credit note prints its own number, not the one it copied', async () =>
 
 test('a partial correction keeps the reference after trimming lines', async () => {
   const invoice = await issuedInvoice()
-  const note = await invoices().createCreditNoteFor(invoice.id)
+  const note = await issuance().createCreditNoteFor(invoice.id)
 
   const saved = await invoices().saveInvoice(
     note.id,

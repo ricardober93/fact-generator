@@ -21,7 +21,8 @@ import { assetsFor } from './embedAssets'
 import { AssetRepository } from './models/asset/AssetRepository'
 import type { Invoice, IInvoiceRecord } from './models/invoice/Invoice'
 import type { IArithmeticIssue } from './models/invoice/checkArithmetic'
-import { InvoiceRepository, type IIssueRejection } from './models/invoice/InvoiceRepository'
+import { InvoiceRepository } from './models/invoice/InvoiceRepository'
+import { Issuance, type IIssueRejection } from './Issuance'
 import { Template } from './models/template/Template'
 import { TemplateRepository } from './models/template/TemplateRepository'
 import { dataFit, templateAccepts, type IDataFit } from './render/dataFit'
@@ -147,6 +148,7 @@ export async function versionOfInvoice({ id }: { id: string }): Promise<string> 
 export class InvoiceController {
   constructor(
     private readonly invoices: InvoiceRepository,
+    private readonly issuance: Issuance,
     private readonly templates: TemplateRepository,
     private readonly assets: AssetRepository,
   ) {}
@@ -213,7 +215,7 @@ export class InvoiceController {
 
   @action()
   async issue(input: IssueInvoiceDto): Promise<IIssueInvoiceReply> {
-    const result = await this.invoices.issueInvoice(input.id, {
+    const result = await this.issuance.issueInvoice(input.id, {
       prefix: input.prefix,
       number: input.number,
     })
@@ -225,7 +227,7 @@ export class InvoiceController {
 
   @action()
   async correct(input: InvoiceIdDto): Promise<UiRedirect> {
-    const note = await this.invoices.createCreditNoteFor(input.id)
+    const note = await this.issuance.createCreditNoteFor(input.id)
     return redirect(`/invoices/${note.id}`)
   }
 

@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict'
+import { Issuance } from './Issuance'
 import test, { before } from 'node:test'
 import { container, InMemoryLocker, Locker } from '@wabot-dev/framework'
 import { useMemoryRepositories } from '@wabot-dev/framework/testing'
@@ -23,6 +24,10 @@ const ADDS_UP: IInvoiceRecord = {
 
 let invoiceId = ''
 let templateId = ''
+
+function issuance(): Issuance {
+  return container.resolve(Issuance)
+}
 
 function invoices(): InvoiceRepository {
   return container.resolve(InvoiceRepository)
@@ -106,7 +111,7 @@ test('issuing changes the key, so no stale page survives it', async () => {
   const draft = await invoices().createInvoice({ templateId, data: ADDS_UP, items: ITEMS })
   const before = await versionOfInvoice({ id: draft.id })
 
-  const result = await invoices().issueInvoice(draft.id, {
+  const result = await issuance().issueInvoice(draft.id, {
     prefix: 'VK',
     at: Date.UTC(2026, 7, 22),
   })
@@ -120,7 +125,7 @@ test('two documents with the same data and different state do not share a key', 
   const second = await invoices().createInvoice({ templateId, data: ADDS_UP, items: ITEMS })
   assert.equal(await versionOfInvoice({ id: first.id }), await versionOfInvoice({ id: second.id }))
 
-  await invoices().issueInvoice(second.id, { prefix: 'VK', at: Date.UTC(2026, 7, 22) })
+  await issuance().issueInvoice(second.id, { prefix: 'VK', at: Date.UTC(2026, 7, 22) })
 
   assert.notEqual(
     await versionOfInvoice({ id: first.id }),

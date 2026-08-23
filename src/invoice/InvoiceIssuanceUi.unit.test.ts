@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict'
+import { Issuance } from './Issuance'
 import test, { after, before } from 'node:test'
 import { container, InMemoryLocker, Locker } from '@wabot-dev/framework'
 import { useMemoryRepositories } from '@wabot-dev/framework/testing'
@@ -24,6 +25,10 @@ const ITEMS: IInvoiceRecord[] = [{ descripcion: 'Producto uno', total: 70 }]
 
 let harness: ISignedInHarness
 let templateId = ''
+
+function issuance(): Issuance {
+  return container.resolve(Issuance)
+}
 
 function invoices(): InvoiceRepository {
   return container.resolve(InvoiceRepository)
@@ -88,7 +93,7 @@ test('the issue action reports a refusal as a value, not as a failure', async ()
 
 test('an issued document is shown but not edited', async () => {
   const invoice = await draft()
-  await invoices().issueInvoice(invoice.id)
+  await issuance().issueInvoice(invoice.id)
 
   const page = await harness.get(`/invoices/${invoice.id}`)
 
@@ -101,7 +106,7 @@ test('an issued document is shown but not edited', async () => {
 test('the list tells a draft from an issued document', async () => {
   const pending = await draft()
   const sent = await draft()
-  await invoices().issueInvoice(sent.id)
+  await issuance().issueInvoice(sent.id)
 
   const page = await harness.get('/invoices')
 
@@ -135,7 +140,7 @@ test('the numbering screen lists the ranges and creates one', async () => {
 
 test('retouching the template reaches an issued document without touching its data', async () => {
   const invoice = await draft()
-  await invoices().issueInvoice(invoice.id)
+  await issuance().issueInvoice(invoice.id)
   const frozen = (await invoices().findOrThrow(invoice.id)).invoiceData
 
   const templates = container.resolve(TemplateRepository)
