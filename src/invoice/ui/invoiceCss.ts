@@ -95,8 +95,39 @@ export const INVOICE_CSS = `
   white-space: nowrap;
 }
 
+.wb-toolbar-form {
+  display: contents;
+}
+
+.wb-correction-note {
+  margin: 0;
+  padding: var(--sp-2) var(--sp-4);
+  background: rgb(var(--c-bg-raised));
+}
+
+.wb-invoice-fieldset {
+  display: contents;
+  border: 0;
+  padding: 0;
+  margin: 0;
+}
+
+.wb-print-blocked {
+  margin: var(--sp-4);
+  padding: var(--sp-4);
+  border-radius: var(--radius-md);
+  background: rgb(var(--c-bg-raised));
+  border: 1px solid rgb(var(--c-warning, var(--c-border)));
+}
+
+.wb-print-blocked ul {
+  margin: var(--sp-2) 0 0;
+  padding-left: var(--sp-4);
+}
+
 @media print {
   .wb-invoice-toolbar,
+  .wb-correction-note,
   .wb-invoice-form {
     display: none !important;
   }
@@ -118,6 +149,10 @@ export const INVOICE_CSS = `
   .wb-invoice-paper {
     transform: none !important;
     zoom: 1 !important;
+  }
+
+  .wb-invoice-shell[data-print-blocked='true'] .wb-invoice-stage {
+    display: none !important;
   }
 }
 `

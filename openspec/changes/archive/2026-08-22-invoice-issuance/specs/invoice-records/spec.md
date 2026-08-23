@@ -1,14 +1,4 @@
-# invoice-records Specification
-
-## Purpose
-
-La factura como registro de datos: qué guarda y qué nunca guarda, el formulario derivado
-del schema del documento, el visualizador en vivo, el cambio de diseño sobre la marcha, la
-impresión y la detección de datos que ya no encajan con su plantilla. No cubre el modelo
-del documento ni cómo se pinta —eso es `invoice-document-model` e `invoice-renderer`—, ni
-la edición del diseño, que es `template-editor`.
-
-## Requirements
+## MODIFIED Requirements
 
 ### Requirement: Una factura guarda datos, nunca un papel
 
@@ -80,11 +70,6 @@ El camino de número de factura es la excepción: NO DEBE (MUST NOT) ofrecerse c
 porque el número lo asigna la emisión. La plantilla lo sigue declarando y lo sigue pintando; lo que
 desaparece es la casilla donde alguien lo tecleaba.
 
-Al revés que el número, el **motivo** de una nota de crédito DEBE aparecer como campo aunque ninguna
-plantilla lo declare. Son las dos únicas excepciones y las dos por la misma razón: hay datos que
-pertenecen al documento y no a su diseño. El número lo decide el sistema y por eso no se teclea; el
-motivo lo decide quien corrige y por eso se teclea aunque el papel no lo pinte.
-
 El formulario NO DEBE escribirse a mano por diseño: una plantilla que declara un camino
 nuevo obtiene su campo sin tocar el formulario.
 
@@ -97,12 +82,6 @@ nuevo obtiene su campo sin tocar el formulario.
 
 - **WHEN** se abre el formulario de una factura sobre una plantilla que declara el camino de número
 - **THEN** no aparece ninguna casilla para escribirlo
-
-#### Scenario: El motivo es un campo aunque no esté en el schema
-
-- **WHEN** se abre el formulario de una nota de crédito sobre una plantilla que no declara ningún
-  camino de motivo
-- **THEN** aparece igualmente el campo de motivo
 
 #### Scenario: Los caminos de ítem son columnas, no campos
 
@@ -119,23 +98,6 @@ nuevo obtiene su campo sin tocar el formulario.
 
 - **WHEN** se añade un camino al `dataSchema` de una plantilla y se abre el formulario
 - **THEN** aparece un campo para ese camino sin haber cambiado el formulario
-
-### Requirement: Las líneas de la factura se añaden y se quitan
-
-El formulario DEBE (MUST) permitir añadir una línea, quitarla y reordenarla. Una factura PUEDE no
-tener ninguna línea.
-
-Quitar una línea NO DEBE (MUST NOT) alterar los valores de las demás.
-
-#### Scenario: Añadir una línea
-
-- **WHEN** se añade una línea
-- **THEN** aparece una fila vacía con una columna por cada camino de ítem del schema
-
-#### Scenario: Quitar una línea del medio
-
-- **WHEN** se quita la segunda de tres líneas
-- **THEN** quedan la primera y la tercera con sus valores intactos
 
 ### Requirement: Los totales se calculan como comodidad, pero se guardan como datos
 
@@ -177,60 +139,6 @@ decimales.
 
 - **WHEN** se intenta emitir esa misma factura
 - **THEN** la emisión se rechaza y los importes guardados siguen siendo los que se enviaron
-
-### Requirement: El visualizador pinta en vivo con el motor de render
-
-Junto al formulario DEBE (MUST) verse el documento pintado con la misma función `render` que usa el
-embed, alimentada por lo que hay en el formulario en ese momento. El visualizador DEBE actualizarse
-al escribir, sin viaje al servidor y sin guardar.
-
-El documento del visualizador NO DEBE (MUST NOT) verse afectado por los estilos de la aplicación,
-con la misma garantía que ya rige para el lienzo del editor.
-
-#### Scenario: Escribir se ve al momento
-
-- **WHEN** se escribe el nombre del cliente en el formulario
-- **THEN** el visualizador lo muestra sin recargar y sin haber guardado
-
-#### Scenario: Es el mismo render que el del embed
-
-- **WHEN** se compara el marcado del visualizador con el que produce el embed para los mismos datos
-- **THEN** el documento pintado es el mismo
-
-### Requirement: El diseño se cambia sobre la marcha
-
-El visualizador DEBE (MUST) permitir cambiar la plantilla con la que se pinta la factura, entre las
-que admiten sus datos. Cambiarla NO DEBE (MUST NOT) alterar ningún dato de la factura.
-
-La plantilla elegida se guarda con la factura como la que usa por defecto.
-
-#### Scenario: La misma factura en otro papel
-
-- **WHEN** se cambia el diseño de una factura de `chevron-slate` a `bars-navy`
-- **THEN** el visualizador la pinta con el diseño nuevo y sus datos no cambian
-
-#### Scenario: El diseño elegido se recuerda
-
-- **WHEN** se cambia el diseño, se guarda y se vuelve a abrir la factura
-- **THEN** se pinta con el diseño elegido
-
-### Requirement: Al imprimir sólo sale el papel
-
-La página de una factura DEBE (MUST) imprimir únicamente el documento. El formulario, la barra de
-herramientas y cualquier otro elemento de la aplicación NO DEBEN (MUST NOT) aparecer en el papel.
-
-La salida a PDF es la del propio diálogo de impresión del navegador. NO DEBE existir ningún endpoint
-que genere un PDF ni ningún archivo de PDF almacenado.
-
-#### Scenario: El chrome no se imprime
-
-- **WHEN** se imprime la página de una factura
-- **THEN** el papel contiene el documento y no contiene el formulario ni la barra de herramientas
-
-#### Scenario: No hay PDF de servidor
-
-- **WHEN** se recorre la superficie HTTP de las facturas
-- **THEN** no existe ninguna ruta que devuelva un PDF
 
 ### Requirement: Se avisa cuando los datos guardados ya no encajan con la plantilla
 
@@ -286,104 +194,17 @@ DEBE poder abrir un documento y crear uno nuevo.
 - **WHEN** no hay ninguna factura guardada
 - **THEN** la lista lo dice y ofrece crear la primera
 
-### Requirement: Un guardado que llega tarde no pisa el anterior
+## REMOVED Requirements
 
-Guardar una factura ya existente DEBE (MUST) indicar sobre qué revisión se está escribiendo. Si
-esa revisión no es la almacenada, el sistema NO DEBE (MUST NOT) escribir absolutamente nada: ni
-los datos, ni las líneas, ni los parámetros, ni el contador.
+### Requirement: El número de factura lo escribe la persona
 
-Sin esta comprobación, dos pestañas abiertas sobre la misma factura hacen que la última en
-guardar borre el trabajo de la otra sin que nadie se entere. Es la peor forma de perder datos:
-silenciosa y sin rastro.
+**Reason**: El documento pasa a ser un registro fiscal. Un consecutivo que se teclea no garantiza
+unicidad, ni pertenencia a una resolución de numeración, ni vigencia, y el aviso de número
+repetido que no impedía guardar deja de ser aceptable en un documento que se entrega a un cliente.
+Lo sustituye `invoice-numbering`: el número sale de un rango al emitir, y se puede indicar a mano
+solo si pertenece a un rango vigente y está libre.
 
-La comparación y la escritura DEBEN ocurrir como una sola operación indivisible por factura. Una
-comprobación que se hace y después se escribe deja una ventana por la que se cuela justo la
-carrera que se quería evitar.
-
-#### Scenario: La revisión coincide
-
-- **WHEN** se guarda una factura indicando la revisión que efectivamente está almacenada
-- **THEN** los datos quedan guardados y el contador sube en uno
-
-#### Scenario: La revisión se ha quedado atrás
-
-- **WHEN** se guarda una factura indicando una revisión anterior a la almacenada
-- **THEN** no se escribe nada y la factura conserva exactamente los datos que ya tenía
-
-#### Scenario: Dos guardados seguidos desde el mismo punto de partida
-
-- **WHEN** dos guardados parten de la misma revisión y se envían uno tras otro
-- **THEN** el primero queda guardado y el segundo se rechaza
-
-#### Scenario: Crear una factura no exige revisión
-
-- **WHEN** se guarda una factura que todavía no existe
-- **THEN** se crea con la primera revisión, sin que haya que indicar ninguna
-
-### Requirement: Una factura guardada antes de existir el contador se sigue guardando
-
-Una factura almacenada sin contador de revisión DEBE (MUST) tratarse como si su revisión fuera
-la inicial, y DEBE poder guardarse sin ningún paso previo, sin migración y sin intervención
-manual.
-
-Esa factura NO DEBE (MUST NOT) quedar exenta de la comprobación: si alguien la guardó entretanto,
-el guardado que llega tarde se rechaza igual que en cualquier otra.
-
-#### Scenario: Se guarda una factura anterior al contador
-
-- **WHEN** se guarda una factura que se almacenó sin contador de revisión
-- **THEN** el guardado se acepta y a partir de ahí la factura tiene contador
-
-#### Scenario: Una factura anterior al contador también puede entrar en conflicto
-
-- **WHEN** una factura sin contador se guarda desde otro sitio y después llega un guardado que
-  seguía partiendo del estado sin contador
-- **THEN** ese segundo guardado se rechaza sin escribir nada
-
-### Requirement: El conflicto se comunica como una respuesta prevista, no como un fallo
-
-El resultado de guardar DEBE (MUST) distinguir «guardado» de «rechazado por conflicto» mediante
-un dato explícito de la respuesta. NO DEBE (MUST NOT) exigir que quien la recibe deduzca el
-conflicto a partir del texto de un mensaje de error.
-
-Un conflicto es la contestación normal a una pregunta legítima —«¿puedo escribir sobre esta
-revisión?»—, no una avería. Deducirlo del texto ata el comportamiento a una redacción concreta:
-cambiar o traducir el mensaje rompe la detección sin que falle ninguna prueba.
-
-La respuesta de un conflicto DEBE incluir la revisión almacenada, para que quien la recibe pueda
-decir sobre qué punto tendría que rehacer su trabajo.
-
-#### Scenario: Se distingue sin leer el mensaje
-
-- **WHEN** un guardado se rechaza por conflicto
-- **THEN** la respuesta lo declara explícitamente, sin que haya que interpretar ningún texto
-
-#### Scenario: El conflicto no se confunde con un guardado correcto
-
-- **WHEN** un guardado se rechaza por conflicto
-- **THEN** la respuesta no puede confundirse con la de un guardado que sí ocurrió
-
-#### Scenario: La respuesta dice por dónde va la factura
-
-- **WHEN** un guardado se rechaza por conflicto
-- **THEN** la respuesta incluye la revisión que está almacenada
-
-### Requirement: Ante un conflicto no se toca lo que la persona tiene escrito
-
-Cuando un guardado se rechaza por conflicto, el editor DEBE (MUST) avisar de forma visible y
-DEBE conservar intacto lo que haya en el formulario. NO DEBE (MUST NOT) recargar la factura,
-descartar los cambios ni sobrescribir ningún campo por su cuenta.
-
-Recargar para «traer lo último» parece servicial y es justo lo que destruye el trabajo: quien
-lleva diez minutos escribiendo los pierde para ver los cambios de otro. Quien decide qué
-conservar es quien está delante.
-
-#### Scenario: El aviso aparece y el formulario sigue igual
-
-- **WHEN** un guardado se rechaza por conflicto
-- **THEN** se avisa de que otro guardado se adelantó y todo lo escrito sigue en su sitio
-
-#### Scenario: Se puede volver a intentar
-
-- **WHEN** tras el aviso se vuelve a guardar partiendo de la revisión ya almacenada
-- **THEN** el guardado se acepta
+**Migration**: Ninguna acción sobre los datos. Las facturas guardadas hasta ahora son borradores y
+su número tecleado sigue en sus datos; al emitirlas, el rango asigna el consecutivo y sobrescribe
+esa ruta. Para continuar el consecutivo de un sistema anterior se crea un rango que empiece donde
+aquel terminó, o se indica el número al emitir.

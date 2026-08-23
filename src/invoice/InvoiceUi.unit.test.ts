@@ -51,12 +51,12 @@ test('the new invoice page shows a form derived from the schema and a viewer', a
 
   assert.equal(page.status, 200)
   assert.match(page.text, /data-field="cliente\.nombre"/)
-  assert.match(page.text, /data-field="factura\.numero"/)
+  assert.equal(page.text.includes('data-field="factura.numero"'), false)
   assert.match(page.text, /data-invoice-paper="true"/)
   assert.equal(page.text.includes('data-field="item.descripcion"'), false)
 })
 
-test('saving creates the invoice and reports no duplicate', async () => {
+test('saving creates the invoice', async () => {
   const result = await harness.action('/invoices/_action/save', {
     templateId,
     data: DATA,
@@ -64,21 +64,8 @@ test('saving creates the invoice and reports no duplicate', async () => {
   })
   const body = await result.json()
 
-  assert.equal(body.duplicate, false)
   const stored = await invoices().find(body.id)
   assert.deepEqual(stored?.invoiceData, DATA)
-})
-
-test('a second invoice with the same number saves and warns', async () => {
-  const result = await harness.action('/invoices/_action/save', {
-    templateId,
-    data: DATA,
-    items: ITEMS,
-  })
-  const body = await result.json()
-
-  assert.equal(body.duplicate, true)
-  assert.ok(await invoices().find(body.id))
 })
 
 test('saving reports the revision it landed on', async () => {
@@ -150,7 +137,6 @@ test('a conflict is told apart without reading any message', async () => {
 
   assert.equal(late.status, 200)
   assert.equal(body.status, 'conflict')
-  assert.equal(body.duplicate, false)
 })
 
 test('the list shows number, customer, date and total', async () => {

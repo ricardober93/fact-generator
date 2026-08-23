@@ -1,4 +1,5 @@
 import { DETAIL_ITEM_ROOT, type IDataType, type IDocument } from '../render/document'
+import { INVOICE_NUMBER_PATH } from '../render/invoiceFields'
 
 export interface IFormField {
   path: string
@@ -59,6 +60,7 @@ export function formShapeOf(doc: IDocument): IFormShape {
   const columns: IFormField[] = []
   for (const entry of doc.dataSchema) {
     if (!entry || typeof entry.path !== 'string' || entry.path.length === 0) continue
+    if (entry.path === INVOICE_NUMBER_PATH) continue
     if (isItemPath(entry.path)) {
       const key = segmentsOf(entry.path).slice(1).join('.')
       if (key) columns.push(fieldOf(entry.path, entry.type, entry.required, key))

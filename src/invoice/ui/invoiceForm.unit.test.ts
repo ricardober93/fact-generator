@@ -126,3 +126,12 @@ test('a hand corrected total survives a later unrelated field change', () => {
 
   assert.equal(readPath(next, 'factura.total'), 95)
 })
+
+test('the invoice number is not a field anybody types', () => {
+  const shape = formShapeOf(DOC)
+  const paths = shape.groups.flatMap((group) => group.fields.map((field) => field.path))
+
+  assert.ok(DOC.dataSchema.some((entry) => entry.path === 'factura.numero'))
+  assert.equal(paths.includes('factura.numero'), false)
+  assert.ok(paths.includes('factura.fecha'))
+})
