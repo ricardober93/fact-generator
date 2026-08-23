@@ -51,7 +51,7 @@ propio tramo disjunto—, sin ningún mecanismo adicional.
 - **WHEN** existe un rango de 1000 a 1999 y se crea otro del mismo tipo y prefijo de 2000 a 2999
 - **THEN** los dos quedan guardados
 
-#### Scenario: El mismo tramo para otra serie sí vale
+#### Scenario: El mismo tramo para otro tipo de documento sí vale
 
 - **WHEN** existe un rango de la serie de facturas de 1 a 999 y se crea uno de la serie de notas de
   crédito de 1 a 999

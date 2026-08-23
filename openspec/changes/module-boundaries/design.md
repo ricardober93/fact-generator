@@ -101,6 +101,12 @@ eso se anota en vez de arreglarse por el camino.
 - **Reordenar sin añadir nada visible es trabajo que no se ve** → Cierto, y por eso se hace ahora y no
   «cuando haya tiempo»: las dos propuestas en cola aterrizan en estos archivos, así que hacerlo
   después significa hacerlo dos veces.
+- **Renombrar un escenario en un delta lo borra del spec** → No es una teoría: el archivado de este
+  cambio se ensayó en seco y lo rechazó, igual que había rechazado el de `invoice-issuance` por lo
+  mismo. El archivador resuelve los bloques `MODIFIED` por su cabecera y compara **nombres** de
+  escenario: un nombre distinto es un escenario que desaparece. Los títulos de requisito sí se pueden
+  cambiar, con un bloque `RENAMED`; los nombres de escenario no se tocan nunca, y si el texto ha
+  envejecido se cambia el cuerpo y se deja el nombre.
 - **La regla de no importar el interior de otro módulo no la impone nada** → Se acepta. La única regla
   de dependencia que este proyecto vigila de verdad la impone el build (§1), y añadir un test de
   arquitectura está explícitamente descartado.
