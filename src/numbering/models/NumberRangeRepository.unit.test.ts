@@ -8,6 +8,8 @@ useMemoryRepositories()
 container.register(Locker, { useToken: InMemoryLocker })
 
 const OWNER = 'empresa-1'
+const OTHER_OWNER = 'empresa-2'
+const OWNER_WITHOUT_RANGES = 'empresa-3'
 const VALID_FROM = Date.UTC(2026, 0, 1)
 const VALID_TO = Date.UTC(2026, 11, 31)
 
@@ -115,4 +117,55 @@ test('a covering range is found by type, prefix and number', async () => {
   assert.equal((await ranges().findCovering(OWNER, 'factura', 'I', 5500)).length, 1)
   assert.equal((await ranges().findCovering(OWNER, 'factura', 'I', 6500)).length, 0)
   assert.equal((await ranges().findCovering(OWNER, 'factura', 'J', 5500)).length, 0)
+})
+
+test('a range without an owner is refused', async () => {
+  await assert.rejects(() => ranges().createRange(input({ prefix: 'K', owner: '' })), /owner/)
+})
+
+test('the same span with the same prefix for another owner is accepted', async () => {
+  await ranges().createRange(input({ prefix: 'L', from: 8000, to: 8999 }))
+  const foreign = await ranges().createRange(
+    input({ prefix: 'L', from: 8000, to: 8999, owner: OTHER_OWNER }),
+  )
+
+  assert.equal(foreign.owner, OTHER_OWNER)
+  assert.equal(
+    (await ranges().findBySeries(OWNER, 'factura')).filter((r) => r.prefix === 'L').length,
+    1,
+  )
+})
+
+test('the ranges of another owner are neither seen nor advanced', async () => {
+  const foreign = await ranges().createRange(
+    input({ prefix: 'M', from: 6000, to: 6999, owner: OTHER_OWNER }),
+  )
+
+  const assigned = await ranges().assign({
+    owner: OWNER_WITHOUT_RANGES,
+    series: 'factura',
+    at: Date.UTC(2026, 5, 15),
+    isTaken: async () => false,
+  })
+
+  assert.deepEqual(assigned, { status: 'rejected', reason: 'NO_NUMBER_RANGE' })
+  assert.equal((await ranges().findOrThrow(foreign.id)).next, 6000)
+})
+
+test('a number that only falls inside another owner range is refused', async () => {
+  const foreign = await ranges().createRange(
+    input({ prefix: 'N', from: 7000, to: 7999, owner: OTHER_OWNER }),
+  )
+
+  const assigned = await ranges().assign({
+    owner: OWNER,
+    series: 'factura',
+    at: Date.UTC(2026, 5, 15),
+    prefix: 'N',
+    number: 7500,
+    isTaken: async () => false,
+  })
+
+  assert.deepEqual(assigned, { status: 'rejected', reason: 'NUMBER_OUT_OF_RANGE' })
+  assert.equal((await ranges().findOrThrow(foreign.id)).next, 7000)
 })
