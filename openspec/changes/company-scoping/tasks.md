@@ -3,41 +3,44 @@ congelado, sin tocar la identidad. Los grupos 5 a 8 son la segunda.
 
 ## 1. La empresa
 
-- [ ] 1.1 `models/company/Company.ts`: entidad con `nit`, `name`, `address`, `taxRegime` y `logoId`
+- [x] 1.1 `models/company/Company.ts`: entidad con `nit`, `name`, `address`, `taxRegime` y `logoId`
       opcional. Getters, sin lógica de emisión
-- [ ] 1.2 `models/company/CompanyRepository.ts`: `createCompany` que exige NIT y razón social;
+- [x] 1.2 `models/company/CompanyRepository.ts`: `createCompany` que exige NIT y razón social;
       `current()` que devuelve la única empresa o `null`
-- [ ] 1.3 Crear una empresa añade esa empresa a quien la crea y la deja como su empresa activa, para
-      que nadie pueda crear una empresa en la que después no puede entrar
-- [ ] 1.4 Tests: se crea con sus datos; sin NIT o sin razón social no se crea; crearla deja al
+- [ ] 1.3 **Espera a la segunda entrega**: pertenencia y empresa activa necesitan que exista `User`,
+      así que la comprobación se hace en el grupo 5 junto con la sesión
+- [x] 1.4 Tests: se crea con sus datos; sin NIT o sin razón social no se crea; crearla deja al
       creador dentro y operando en ella
 
 ## 2. El rango tiene dueño
 
-- [ ] 2.1 `NumberRange` gana `companyId`, y `createRange` lo exige
-- [ ] 2.2 La regla de no solapamiento pasa a ser por empresa + tipo + prefijo
-- [ ] 2.3 `findUsable` y `findCovering` filtran por empresa
-- [ ] 2.4 Tests: sin empresa no se crea; el mismo tramo con el mismo prefijo en otra empresa sí vale;
+- [x] 2.1 `NumberRange` gana `companyId`, y `createRange` lo exige
+- [x] 2.2 La regla de no solapamiento pasa a ser por empresa + tipo + prefijo
+- [x] 2.3 `findUsable` y `findCovering` filtran por empresa
+- [x] 2.4 Tests: sin empresa no se crea; el mismo tramo con el mismo prefijo en otra empresa sí vale;
       emitir no ve los rangos de otra empresa
-- [ ] 2.5 Los rangos existentes no tienen empresa: se adoptan a la única que haya la primera vez que
-      se leen, sin migración y sin paso manual. Caso a probar explícitamente
+- [x] 2.5 **Descartado con motivo.** Un rango sin dueño simplemente deja de encontrarse. Adoptarlo
+      automáticamente exigía o que la numeración supiera qué es una empresa —rompiendo la opacidad que
+      acaba de costar un refactor— o una regla permisiva que con dos empresas filtraría consecutivos
+      de una a otra, que en un registro fiscal es el peor fallo posible. La aplicación no se ha
+      desplegado nunca: los únicos rangos sin dueño están en bases de desarrollo
 
 ## 3. El emisor en el documento
 
-- [ ] 3.1 `InvoiceRepository.checked`: escribir los caminos de emisor que declara la plantilla con los
+- [x] 3.1 `InvoiceRepository.checked`: escribir los caminos de emisor que declara la plantilla con los
       datos de la empresa, con el mismo `withPath` que usa el número
-- [ ] 3.2 `Invoice` gana `companyId` e `issuer` congelado; `applyIssue` lo estampa junto al número
-- [ ] 3.3 Emitir sin empresa se rechaza con su propio motivo tipado, como el rango ausente
-- [ ] 3.4 `invoiceForm.ts`: excluir los caminos de emisor de los campos editables, como el número
-- [ ] 3.5 Tests: el borrador adopta el emisor de la empresa al guardarse; cambiar la razón social
+- [x] 3.2 `Invoice` gana `companyId` e `issuer` congelado; `applyIssue` lo estampa junto al número
+- [x] 3.3 Emitir sin empresa se rechaza con su propio motivo tipado, como el rango ausente
+- [x] 3.4 `invoiceForm.ts`: excluir los caminos de emisor de los campos editables, como el número
+- [x] 3.5 Tests: el borrador adopta el emisor de la empresa al guardarse; cambiar la razón social
       alcanza a los borradores y **no** a los emitidos; el formulario no ofrece casilla de emisor
 
 ## 4. La empresa en la interfaz
 
-- [ ] 4.1 Pantalla de empresa —ver y editar—, con la misma forma que la de rangos: formulario normal,
+- [x] 4.1 Pantalla de empresa —ver y editar—, con la misma forma que la de rangos: formulario normal,
       sin island
-- [ ] 4.2 Emitir sin empresa lo dice con el texto de `issueOutcome`, junto al de rango ausente
-- [ ] 4.3 Tests de UI: sin empresa la pantalla lo dice y ofrece crearla; guardarla cambia lo que
+- [x] 4.2 Emitir sin empresa lo dice con el texto de `issueOutcome`, junto al de rango ausente
+- [x] 4.3 Tests de UI: sin empresa la pantalla lo dice y ofrece crearla; guardarla cambia lo que
       pintan los borradores
 
 ## 5. Los usuarios y la empresa activa

@@ -76,6 +76,9 @@ export function InvoiceList({ invoices }: { invoices: Invoice[] }): VNode {
         <a class="btn btn-secondary btn-sm" href="/ranges">
           Numeración
         </a>
+        <a class="btn btn-secondary btn-sm" href="/company">
+          Empresa
+        </a>
       </div>
     </main>
   )
