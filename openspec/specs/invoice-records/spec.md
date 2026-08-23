@@ -80,6 +80,11 @@ El camino de número de factura es la excepción: NO DEBE (MUST NOT) ofrecerse c
 porque el número lo asigna la emisión. La plantilla lo sigue declarando y lo sigue pintando; lo que
 desaparece es la casilla donde alguien lo tecleaba.
 
+Al revés que el número, el **motivo** de una nota de crédito DEBE aparecer como campo aunque ninguna
+plantilla lo declare. Son las dos únicas excepciones y las dos por la misma razón: hay datos que
+pertenecen al documento y no a su diseño. El número lo decide el sistema y por eso no se teclea; el
+motivo lo decide quien corrige y por eso se teclea aunque el papel no lo pinte.
+
 El formulario NO DEBE escribirse a mano por diseño: una plantilla que declara un camino
 nuevo obtiene su campo sin tocar el formulario.
 
@@ -92,6 +97,12 @@ nuevo obtiene su campo sin tocar el formulario.
 
 - **WHEN** se abre el formulario de una factura sobre una plantilla que declara el camino de número
 - **THEN** no aparece ninguna casilla para escribirlo
+
+#### Scenario: El motivo es un campo aunque no esté en el schema
+
+- **WHEN** se abre el formulario de una nota de crédito sobre una plantilla que no declara ningún
+  camino de motivo
+- **THEN** aparece igualmente el campo de motivo
 
 #### Scenario: Los caminos de ítem son columnas, no campos
 
