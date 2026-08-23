@@ -7,7 +7,15 @@ import {
   isPresent,
   isString,
 } from '@wabot-dev/framework'
-import { action, redirect, uiController, view, type VNode } from '@wabot-dev/framework/ui'
+import { RequireAdmin } from '../auth/RequireRole'
+import {
+  action,
+  uiMiddleware,
+  redirect,
+  uiController,
+  view,
+  type VNode,
+} from '@wabot-dev/framework/ui'
 import { RequireSession } from '../auth/RequireSession'
 import { SignOutButton } from '../auth/ui/SignOutButton'
 import { assetsFor } from './embedAssets'
@@ -184,6 +192,7 @@ export class TemplateController {
   }
 
   @action()
+  @uiMiddleware(RequireAdmin)
   async save(input: SaveTemplateDto): Promise<ISaveTemplateReply> {
     const result = await this.templates.saveDocument(input.id, input.doc, input.rev)
     return { status: result.status, rev: result.template.rev }

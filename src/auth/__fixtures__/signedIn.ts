@@ -9,10 +9,23 @@ import {
 
 const OPERATOR = 'operador@example.com'
 
+export interface ISessionOverrides {
+  email?: string
+  userId?: string
+  role?: 'administrador' | 'cajero' | 'lectura'
+  companyId?: string
+}
+
 const testJwt = new TestJwt()
 
-export function sessionHeaders(email: string = OPERATOR): Record<string, string> {
-  return { Cookie: `${testJwt.config.cookieName}=${testJwt.sign({ email })}` }
+export function sessionHeaders(overrides: ISessionOverrides = {}): Record<string, string> {
+  const session = {
+    email: overrides.email ?? OPERATOR,
+    userId: overrides.userId ?? 'user-1',
+    role: overrides.role ?? 'administrador',
+    companyId: overrides.companyId ?? 'empresa-1',
+  }
+  return { Cookie: `${testJwt.config.cookieName}=${testJwt.sign(session)}` }
 }
 
 export const SESSION_REGISTRATIONS: [unknown, unknown][] = [[JwtConfig, testJwt.config]]
@@ -26,6 +39,10 @@ export interface ISignedInHarness {
 
 function withSession(options: IUiRequestOptions = {}): IUiRequestOptions {
   return { ...options, headers: { ...sessionHeaders(), ...options.headers } }
+}
+
+export function asRole(role: ISessionOverrides['role']): IUiRequestOptions {
+  return { headers: sessionHeaders({ role }) }
 }
 
 export async function createSignedInHarness(

@@ -8,6 +8,7 @@ import {
   isPresent,
   isString,
 } from '@wabot-dev/framework'
+import { RequireWriter } from '../auth/RequireRole'
 import {
   InvoiceIdDto,
   IssueInvoiceDto,
@@ -19,6 +20,7 @@ import {
 import { versionOfInvoice } from './invoiceVersion'
 import {
   action,
+  uiMiddleware,
   redirect,
   uiController,
   view,
@@ -120,6 +122,7 @@ export class InvoiceController {
   }
 
   @action()
+  @uiMiddleware(RequireWriter)
   async save(input: SaveInvoiceDto): Promise<ISaveInvoiceReply> {
     const payload = {
       templateId: input.templateId,
@@ -141,6 +144,7 @@ export class InvoiceController {
   }
 
   @action()
+  @uiMiddleware(RequireWriter)
   async issue(input: IssueInvoiceDto): Promise<IIssueInvoiceReply> {
     const result = await this.issuance.issueInvoice(input.id, {
       prefix: input.prefix,
@@ -153,12 +157,14 @@ export class InvoiceController {
   }
 
   @action()
+  @uiMiddleware(RequireWriter)
   async correct(input: InvoiceIdDto): Promise<UiRedirect> {
     const note = await this.issuance.createCreditNoteFor(input.id)
     return redirect(`/invoices/${note.id}`)
   }
 
   @action()
+  @uiMiddleware(RequireWriter)
   async remove(input: InvoiceIdDto) {
     const invoice = await this.invoices.find(input.id)
     if (!invoice) throw notFound()

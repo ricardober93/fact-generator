@@ -2,9 +2,16 @@ import assert from 'node:assert/strict'
 import test, { after, before, beforeEach } from 'node:test'
 import { container, JwtConfig } from '@wabot-dev/framework'
 import { UiControllerMetadataStore } from '@wabot-dev/framework/ui'
-import { createUiHarness, TestJwt, type UiHarness } from '@wabot-dev/framework/testing'
+import {
+  createUiHarness,
+  TestJwt,
+  useMemoryRepositories,
+  type UiHarness,
+} from '@wabot-dev/framework/testing'
 import { AuthController } from './AuthController'
 import { LoginAttempts, MAX_FAILED_ATTEMPTS } from './LoginAttempts'
+
+useMemoryRepositories()
 
 const EMAIL = 'operador@example.com'
 const PASSWORD = 'una-contraseña-larga'

@@ -1,6 +1,8 @@
 import { isNotEmpty, isOptional, isString } from '@wabot-dev/framework'
+import { RequireAdmin } from '../auth/RequireRole'
 import {
   action,
+  uiMiddleware,
   redirect,
   uiController,
   view,
@@ -60,6 +62,7 @@ export class CompanyController {
   }
 
   @action()
+  @uiMiddleware(RequireAdmin)
   async save(input: SaveCompanyDto): Promise<UiRedirect> {
     const fields = {
       nit: input.nit,

@@ -23,52 +23,22 @@ function credentials(): AuthCredentials {
   return new AuthCredentials(new Env())
 }
 
-test('the configured credentials open the session', () => {
+test('the seed reads the two variables from the environment', () => {
   withEnv({ AUTH_EMAIL: EMAIL, AUTH_PASSWORD: PASSWORD }, () => {
-    assert.equal(credentials().matches(EMAIL, PASSWORD), true)
+    const seed = credentials()
+
+    assert.equal(seed.email, EMAIL)
+    assert.equal(seed.password, PASSWORD)
   })
 })
 
-test('the email is matched case insensitively and trimmed', () => {
-  withEnv({ AUTH_EMAIL: EMAIL, AUTH_PASSWORD: PASSWORD }, () => {
-    assert.equal(credentials().matches('  OPERADOR@Example.COM ', PASSWORD), true)
+test('the email is normalised, so the case of the first boot does not matter', () => {
+  withEnv({ AUTH_EMAIL: 'Operador@Example.COM', AUTH_PASSWORD: PASSWORD }, () => {
+    assert.equal(credentials().email, EMAIL)
   })
 })
 
-test('a wrong password is rejected', () => {
-  withEnv({ AUTH_EMAIL: EMAIL, AUTH_PASSWORD: PASSWORD }, () => {
-    assert.equal(credentials().matches(EMAIL, 'otra-cosa'), false)
-  })
-})
-
-test('an unknown email is rejected even with the right password', () => {
-  withEnv({ AUTH_EMAIL: EMAIL, AUTH_PASSWORD: PASSWORD }, () => {
-    assert.equal(credentials().matches('otro@example.com', PASSWORD), false)
-  })
-})
-
-test('rubbish arguments are rejected', () => {
-  withEnv({ AUTH_EMAIL: EMAIL, AUTH_PASSWORD: PASSWORD }, () => {
-    const subject = credentials()
-
-    assert.equal(subject.matches(undefined, PASSWORD), false)
-    assert.equal(subject.matches(EMAIL, undefined), false)
-  })
-})
-
-test('the plain password does not survive the constructor', () => {
-  withEnv({ AUTH_EMAIL: EMAIL, AUTH_PASSWORD: PASSWORD }, () => {
-    const subject = credentials()
-
-    assert.equal(JSON.stringify(subject).includes(PASSWORD), false)
-    assert.equal(
-      Object.values(subject).some((value) => value === PASSWORD),
-      false,
-    )
-  })
-})
-
-test('a missing variable stops the application from starting', () => {
+test('without either variable the application refuses to start', () => {
   withEnv({ AUTH_EMAIL: undefined, AUTH_PASSWORD: PASSWORD }, () => {
     assert.throws(() => credentials(), /AUTH_EMAIL/)
   })
@@ -77,8 +47,8 @@ test('a missing variable stops the application from starting', () => {
   })
 })
 
-test('a blank variable counts as missing', () => {
-  withEnv({ AUTH_EMAIL: '   ', AUTH_PASSWORD: PASSWORD }, () => {
-    assert.throws(() => credentials(), /AUTH_EMAIL/)
+test('an empty variable counts as absent', () => {
+  withEnv({ AUTH_EMAIL: EMAIL, AUTH_PASSWORD: '   ' }, () => {
+    assert.throws(() => credentials())
   })
 })

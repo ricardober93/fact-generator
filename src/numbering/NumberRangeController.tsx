@@ -1,6 +1,8 @@
 import { CustomError, isNotEmpty, isOptional, isString } from '@wabot-dev/framework'
+import { RequireAdmin } from '../auth/RequireRole'
 import {
   action,
+  uiMiddleware,
   redirect,
   uiController,
   view,
@@ -75,6 +77,7 @@ export class NumberRangeController {
   }
 
   @action()
+  @uiMiddleware(RequireAdmin)
   async create(input: CreateRangeDto): Promise<UiRedirect> {
     const company = await this.companies.current()
     if (!company) throw badInput('Crea primero la empresa: un rango pertenece a un NIT.')
