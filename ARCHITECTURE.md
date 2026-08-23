@@ -34,9 +34,17 @@ bundle del island y el build falla. La herramienta ya es el test.
 ```
 src/
   _run_.ts                          boot (excluido del scanner)
+  kernel/                         ◄ lo compartido, con puerta (§5)
+    paths.ts  cents.ts  versionKey.ts
+  numbering/                      ◄ módulo: numera series, no sabe qué es una factura
+    app.ts                          la superficie: lo único importable desde fuera
+    NumberRangeController.tsx
+    models/  ui/                  ◄ interior
   invoice/
+    app.ts                          la superficie
     TemplateController.tsx          @uiController({ path: '/templates', app: true })
     EmbedController.tsx             @uiController('/embed')
+    Issuance.ts                     servicio: emitir y corregir
     render/                       ◄ isomorfo · sin IO · sin la raíz del framework
       render.tsx                    render(doc, data, params, assets) → JSX
       bind.ts                       {{ruta.al.dato|filtro}} → valor
@@ -55,12 +63,30 @@ src/
 Es el layout canónico del framework: carpeta de feature, controladores en su raíz,
 `models/` dentro, `ui/` para páginas y componentes.
 
+**Un módulo es una aplicación.** Cada carpeta de `src/` declara en `app.ts` lo único que
+los demás pueden importar. Su interior —`models/`, `ui/`, servicios— no se toca desde
+fuera: se importa `otro/app`, nunca `otro/models/algo`.
+
+La definición no es una metáfora. Un módulo es una aplicación **si y solo si nadie importa
+su interior**, porque esa es exactamente la condición para sacarlo a su propio despliegue
+cambiando el transporte y nada más. Mientras alguien alcance su interior, sacarlo es un
+rediseño.
+
+`app.ts` **no es un barril**. Un barril reexporta el interior y no encapsula nada; por eso
+siguen prohibidos. `app.ts` enumera lo poco que se ofrece, y lo que no aparece es privado.
+`numbering/app.ts` expone el repositorio, su controlador y los tipos de asignación; no
+expone `chooseRange` ni la entidad completa.
+
+La regla **no la impone nada**, como casi todo aquí salvo la frontera isomorfa, que sí la
+impone el build. Se escribe para que se vea al revisar: un `from '../otro/` que no termine
+en `/app` es la señal.
+
 **Sin barrels.** El runner importa todos los archivos de `src/` por los side-effects de
 los decoradores, así que un `index.ts` no encapsula nada que nadie pueda hacer cumplir —
 solo añade un archivo por carpeta y la trampa clásica de ciclos.
 
-**Sin archivo central de registro.** Una feature nueva es una carpeta hermana de
-`invoice/` y el scanner la encuentra sola.
+**Sin archivo central de registro.** Un módulo nuevo es una carpeta hermana en `src/` y el
+scanner lo encuentra solo.
 
 Dentro de `render/` y de los árboles de island: **imports relativos**. El bundler recibe
 un mapa `alias` de esbuild y no lee `tsconfig.paths`, así que `@/` solo sirve en código de
@@ -111,13 +137,39 @@ vive en el documento, no en el código del controlador.
 
 ## 5. Lo que NO se construye
 
-|                                              | Por qué                                                            |
-| -------------------------------------------- | ------------------------------------------------------------------ |
-| `shared/`                                    | Termina siendo el cajón de sastre. Lo compartido vive donde nació. |
-| Capa de servicios que reenvía al repositorio | Un controlador puede inyectar el repositorio.                      |
-| Test de arquitectura                         | La regla que importa ya la obliga el build (§1).                   |
-| Interfaces con una sola implementación       | Se añade la interfaz cuando aparezca la segunda.                   |
-| Event bus, CQRS, DTOs por capa, monorepo     | Nada de esto resuelve un problema que tengamos.                    |
+|                                                  | Por qué                                                                                                                                                                                                                                       |
+| ------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `shared/` sin criterio de entrada                | El cajón de sastre es el resultado de no tener puerta, no de tener carpeta. Existe `kernel/` **con** puerta: sin dominio, dos consumidores ya existentes, sin estado ni IO, y su llegada tiene que borrar código. Ver `src/kernel/README.md`. |
+| Capa de servicios que **reenvía** al repositorio | Un controlador puede inyectar el repositorio. Distinto es el servicio que **orquesta varios** agregados —`Issuance` recibe dos repositorios y un `Locker`—: ese sí. La diferencia se ve en el constructor.                                    |
+| Test de arquitectura                             | La regla que importa ya la obliga el build (§1).                                                                                                                                                                                              |
+| Interfaces con una sola implementación           | Se añade la interfaz cuando aparezca la segunda.                                                                                                                                                                                              |
+| Event bus, CQRS, DTOs por capa, monorepo         | Nada de esto resuelve un problema que tengamos.                                                                                                                                                                                               |
+
+## 5b. La frontera: las mismas reglas dentro y fuera
+
+Cuatro reglas gobiernan cómo habla este sistema con lo que no es él. Rigen igual entre dos
+aplicaciones separadas por la red y entre dos módulos del mismo proceso, y por eso sacar un
+módulo a su propio despliegue será un cambio de transporte y no un rediseño.
+
+1. **Se expone lo que el consumidor necesita, no el esquema propio.** El contrato lo escribe
+   quien consume. Facturación no necesita «productos»: necesita con qué rellenar una línea,
+   que son cinco campos. Un `Product` de inventario tiene cuarenta y treinta y cinco no caben
+   en una línea.
+2. **Las referencias son opacas.** Se guardan y se devuelven; no se interpretan, no se parten,
+   no se usan para construir una URL, no son claves ajenas. Mientras lo sean, el otro lado
+   puede cambiar de identificadores sin avisar.
+3. **Quien guarda un dato congela lo que enseña**, en vez de resolverlo al leer. Pintar una
+   factura no llama a nadie: si lo hiciera, un documento emitido cambiaría cuando cambie el
+   catálogo y dejaría de pintarse cuando el catálogo esté caído.
+4. **Todo acoplamiento es explícito.** Hacia fuera, una variable de entorno: sin ella la
+   aplicación funciona entera. Hacia dentro, `app.ts`: lo que no está declarado no existe.
+
+La primera aplicación práctica hacia dentro es la numeración. Numera una **serie**
+identificada por una clave que no interpreta, así que facturación decide que las suyas se
+llaman `factura` y `notaCredito` y el día que haya remisiones la numeración no se entera. Y
+cuando `InvoiceRepository` necesitó elegir un rango, la respuesta no fue exponer
+`chooseRange`: fue que numbering expusiera la capacidad —«asígname un número»— con la
+comprobación de número ocupado entrando como callback.
 
 ## 6. Restricciones verificadas del framework
 
