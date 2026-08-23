@@ -1,4 +1,4 @@
-import { MISSING, resolvePath } from '../../render/bind'
+import { MISSING, resolvePath } from '../../../kernel/paths'
 import {
   INVOICE_BASE_PATH,
   INVOICE_TAXES_PATH,
@@ -7,7 +7,8 @@ import {
   ITEM_QUANTITY_KEY,
   ITEM_TOTAL_KEY,
 } from '../../render/invoiceFields'
-import { lineAmount, toCents } from '../../render/money'
+import { toCents } from '../../../kernel/cents'
+import { lineAmount } from '../../render/money'
 import type { IInvoiceRecord } from './Invoice'
 
 export type IArithmeticIssueKind = 'line' | 'base' | 'total'

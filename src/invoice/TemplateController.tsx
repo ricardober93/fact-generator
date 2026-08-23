@@ -21,7 +21,7 @@ import { AppLayout } from './ui/AppLayout'
 import Editor from './ui/Editor.island'
 import { PresetGallery } from './ui/PresetGallery'
 import type { IAssetChoice } from './ui/propertyEditors'
-import { versionKey } from './versionKey'
+import { versionKey } from '../kernel/versionKey'
 
 export class CreateTemplateDto {
   @isString()

@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { MISSING, missingRequiredPaths, resolveInScope, resolvePath } from './bind'
+import { MISSING, resolvePath } from '../../kernel/paths'
+import { missingRequiredPaths, resolveInScope } from './bind'
 import { emptyDocument } from './document'
 import { formatValue } from './format'
 

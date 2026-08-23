@@ -30,7 +30,7 @@ import { AppLayout } from './ui/AppLayout'
 import InvoiceEditor from './ui/InvoiceEditor.island'
 import type { ITemplateChoice } from './ui/InvoiceToolbar'
 import { InvoiceList } from './ui/InvoiceList'
-import { versionKey } from './versionKey'
+import { versionKey } from '../kernel/versionKey'
 
 export class InvoiceIdDto {
   @isString()

@@ -1,4 +1,4 @@
-import { MISSING, type IResolved } from './bind'
+import { MISSING, type IResolved } from '../../kernel/paths'
 import type { IDocument, ITheme } from './document'
 
 export const FORMATS = ['currency', 'number', 'date', 'percent'] as const

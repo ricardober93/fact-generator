@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { findTemplatePreset } from '../templates/presets'
+import { writePath } from '../../kernel/paths'
 import { formShapeOf } from './invoiceForm'
 import {
   applyFieldChange,
@@ -10,7 +11,6 @@ import {
   removeLine,
   withLineAmount,
   withTotals,
-  writePath,
 } from './invoiceEdits'
 
 const DOC = findTemplatePreset('chevron-slate')!.build()
@@ -60,9 +60,9 @@ test('formShapeOf refuses a document without a schema', () => {
 })
 
 test('a nested path is written without mutating the source', () => {
-  const data = { cliente: { nombre: 'Ana' } }
+  const data: Record<string, unknown> = { cliente: { nombre: 'Ana' } }
 
-  const next = writePath(data, 'cliente.direccion', 'Calle 1')
+  const next = writePath<unknown>(data, 'cliente.direccion', 'Calle 1')
 
   assert.equal(readPath(next, 'cliente.direccion'), 'Calle 1')
   assert.equal(readPath(next, 'cliente.nombre'), 'Ana')

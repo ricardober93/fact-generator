@@ -1,5 +1,5 @@
 import { Entity, type IEntityData } from '@wabot-dev/framework'
-import { MISSING, resolvePath } from '../../render/bind'
+import { MISSING, resolvePath, writePath } from '../../../kernel/paths'
 import {
   INVOICE_CUSTOMER_PATH,
   INVOICE_DATE_PATH,
@@ -52,16 +52,6 @@ export interface IInvoiceData extends IEntityData {
   issuedAt?: number
   corrects?: ICorrectedDocument
   correctionReason?: string
-}
-
-function withPath(root: IInvoiceRecord, path: string, value: string): IInvoiceRecord {
-  const [head, ...rest] = path.split('.')
-  if (!head) return root
-  if (rest.length === 0) return { ...root, [head]: value }
-  const child = root[head]
-  const isRecord = !!child && typeof child === 'object' && !Array.isArray(child)
-  const branch = isRecord ? (child as IInvoiceRecord) : {}
-  return { ...root, [head]: withPath(branch, rest.join('.'), value) }
 }
 
 export class Invoice extends Entity<IInvoiceData> {
@@ -161,7 +151,11 @@ export class Invoice extends Entity<IInvoiceData> {
       prefix: stamp.prefix,
       number: stamp.number,
       issuedAt: stamp.issuedAt,
-      data: withPath(this.data.data, INVOICE_NUMBER_PATH, `${stamp.prefix}${stamp.number}`),
+      data: writePath<IInvoiceValue>(
+        this.data.data,
+        INVOICE_NUMBER_PATH,
+        `${stamp.prefix}${stamp.number}`,
+      ),
     })
   }
 
