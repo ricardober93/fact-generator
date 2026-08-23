@@ -47,5 +47,5 @@ otro para podar, sin mezclarlos, para que el movimiento se lea como movimiento.
       `<project_context>` inyectado ya no afirma nada falso. Es la única comprobación que importa:
       es lo que va a leer el siguiente cambio
 - [x] 5.2 `npm run fmt:check` en verde —los dos archivos pasan por prettier—
-- [ ] 5.3 Archivar con `openspec archive architecture-refresh --skip-specs --yes`, porque el cambio no
+- [x] 5.3 Archivar con `openspec archive architecture-refresh --skip-specs --yes`, porque el cambio no
       tiene deltas
