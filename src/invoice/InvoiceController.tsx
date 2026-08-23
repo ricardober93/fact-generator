@@ -10,6 +10,7 @@ import {
 } from '@wabot-dev/framework'
 import { RequireWriter } from '../auth/RequireRole'
 import {
+  CatalogSearchDto,
   InvoiceIdDto,
   IssueInvoiceDto,
   NewInvoiceDto,
@@ -30,6 +31,7 @@ import {
 import { Auth } from '@wabot-dev/framework'
 import { UserRepository } from '../auth/models/UserRepository'
 import type { ISession } from '../auth/session'
+import { CatalogSource, type ICatalogItem } from '../catalog/app'
 import { CompanyRepository } from '../company/app'
 import { RequireSession } from '../auth/RequireSession'
 import { assetsFor } from './embedAssets'
@@ -85,6 +87,7 @@ export class InvoiceController {
     private readonly auth: Auth<ISession>,
     private readonly users: UserRepository,
     private readonly companies: CompanyRepository,
+    private readonly catalog: CatalogSource,
     private readonly templates: TemplateRepository,
     private readonly assets: AssetRepository,
   ) {}
@@ -182,6 +185,11 @@ export class InvoiceController {
   }
 
   @action()
+  async searchCatalog(input: CatalogSearchDto): Promise<{ items: ICatalogItem[] }> {
+    return { items: await this.catalog.search(input.text) }
+  }
+
+  @action()
   @uiMiddleware(RequireWriter)
   async correct(input: InvoiceIdDto): Promise<UiRedirect> {
     const note = await this.issuance.createCreditNoteFor(input.id)
@@ -213,6 +221,7 @@ export class InvoiceController {
         issued={invoice ? invoice.issued : false}
         numero={invoice ? invoice.numero : ''}
         docType={invoice ? invoice.docType : 'factura'}
+        catalogEnabled={this.catalog.configured}
         correctionReason={invoice ? invoice.correctionReason : ''}
         corrects={invoice ? invoice.corrects : null}
         templateId={template.id}

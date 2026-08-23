@@ -68,6 +68,12 @@ export type IIssueInvoiceReply =
   | { status: 'issued'; numero: string; rev: number }
   | { status: 'rejected'; reason: IIssueRejection; issues: IArithmeticIssue[] }
 
+export class CatalogSearchDto {
+  @isOptional()
+  @isString()
+  text?: string
+}
+
 export class NewInvoiceDto {
   @isOptional()
   @isString()

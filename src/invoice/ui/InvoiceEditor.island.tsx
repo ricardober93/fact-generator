@@ -10,7 +10,7 @@ import type { IDocument } from '../render/document'
 import type { ICorrectedDocument } from '../models/invoice/Invoice'
 import type { IDocType } from '../models/docType'
 import { InvoiceFields } from './InvoiceFields'
-import { InvoiceLines } from './InvoiceLines'
+import { InvoiceLines, type ICatalogChoice } from './InvoiceLines'
 import { InvoicePaper } from './InvoicePaper'
 import { InvoiceToolbar, type ITemplateChoice } from './InvoiceToolbar'
 import {
@@ -31,6 +31,7 @@ import type { IIssueInvoiceReply } from '../InvoiceDtos'
 
 const SAVE_URL = actionUrl('/invoices', 'save')
 const ISSUE_URL = actionUrl('/invoices', 'issue')
+const CATALOG_URL = actionUrl('/invoices', 'searchCatalog')
 const DOCUMENT_URL = actionUrl('/invoices', 'document')
 
 export interface IInvoiceEditorProps {
@@ -39,6 +40,7 @@ export interface IInvoiceEditorProps {
   issued: boolean
   numero: string
   docType: IDocType
+  catalogEnabled: boolean
   correctionReason: string
   corrects: ICorrectedDocument | null
   templateId: string
@@ -63,6 +65,9 @@ function InvoiceEditor(props: IInvoiceEditorProps): VNode {
   const issued = useSignal(props.issued)
   const numero = useSignal(props.numero)
   const reason = useSignal(props.correctionReason)
+  const catalogText = useSignal('')
+  const catalogItems = useSignal<ICatalogChoice[]>([])
+  const catalogNotice = useSignal('')
   const isCreditNote = props.docType === 'notaCredito'
   const blocked = useComputed(() => issued.value && props.mismatch.missing.length > 0)
   const shape = useComputed(() => formShapeOf(doc.value))
@@ -117,6 +122,34 @@ function InvoiceEditor(props: IInvoiceEditorProps): VNode {
     } catch (error) {
       status.value = error instanceof Error ? error.message : 'No se pudo guardar'
     }
+  }
+
+  async function searchCatalog(): Promise<void> {
+    catalogNotice.value = ''
+    try {
+      const result = await callAction<{ items: ICatalogChoice[] }>(CATALOG_URL, {
+        text: catalogText.value,
+      })
+      catalogItems.value = result.items
+      if (result.items.length === 0) {
+        catalogNotice.value = 'El catálogo no devolvió nada. Puedes escribir la línea a mano.'
+      }
+    } catch {
+      catalogItems.value = []
+      catalogNotice.value = 'El catálogo no está disponible. Puedes escribir la línea a mano.'
+    }
+  }
+
+  function pickFromCatalog(item: ICatalogChoice): void {
+    const line = withLineAmount({
+      ref: item.ref,
+      descripcion: item.label,
+      cantidad: 1,
+      precio: item.unitPrice,
+    })
+    changeLines([...items.value, line])
+    catalogItems.value = []
+    catalogText.value = ''
   }
 
   async function issue(): Promise<void> {
@@ -195,6 +228,15 @@ function InvoiceEditor(props: IInvoiceEditorProps): VNode {
               onMove={(index, target) => changeLines(moveLine(items.value, index, target))}
               onRemove={(index) => changeLines(removeLine(items.value, index))}
               onAdd={() => changeLines(addLine(items.value))}
+              catalog={{
+                enabled: props.catalogEnabled,
+                text: catalogText.value,
+                results: catalogItems.value,
+                notice: catalogNotice.value,
+                onText: (value) => (catalogText.value = value),
+                onSearch: searchCatalog,
+                onPick: pickFromCatalog,
+              }}
             />
           </fieldset>
         </form>
