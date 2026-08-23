@@ -7,6 +7,8 @@ import {
   type VNode,
 } from '@wabot-dev/framework/ui'
 import type { IDocument } from '../render/document'
+import type { ICorrectedDocument } from '../models/invoice/Invoice'
+import type { IDocType } from '../models/docType'
 import { InvoiceFields } from './InvoiceFields'
 import { InvoiceLines } from './InvoiceLines'
 import { InvoicePaper } from './InvoicePaper'
@@ -36,6 +38,9 @@ export interface IInvoiceEditorProps {
   rev: number
   issued: boolean
   numero: string
+  docType: IDocType
+  correctionReason: string
+  corrects: ICorrectedDocument | null
   templateId: string
   doc: IDocument
   data: IFormRecord
@@ -57,6 +62,8 @@ function InvoiceEditor(props: IInvoiceEditorProps): VNode {
   const status = useSignal('')
   const issued = useSignal(props.issued)
   const numero = useSignal(props.numero)
+  const reason = useSignal(props.correctionReason)
+  const isCreditNote = props.docType === 'notaCredito'
   const blocked = useComputed(() => issued.value && props.mismatch.missing.length > 0)
   const shape = useComputed(() => formShapeOf(doc.value))
 
@@ -98,6 +105,7 @@ function InvoiceEditor(props: IInvoiceEditorProps): VNode {
         data: data.value,
         items: items.value,
         params: props.params,
+        correctionReason: isCreditNote ? reason.value : undefined,
       })
       const next = nextSaveState(
         { id: invoiceId.value, rev: rev.value, status: status.value },
@@ -142,13 +150,39 @@ function InvoiceEditor(props: IInvoiceEditorProps): VNode {
         issued={issued.value}
         numero={numero.value}
         canPrint={!blocked.value}
+        canCorrect={issued.value && props.docType === 'factura'}
+        invoiceId={invoiceId.value}
         onTemplate={changeTemplate}
         onSave={save}
         onIssue={issue}
       />
+      {props.corrects ? (
+        <p class="wb-correction-note" data-corrects={props.corrects.id}>
+          Corrige la factura{' '}
+          <a href={`/invoices/${props.corrects.id}`}>
+            {props.corrects.prefix}
+            {props.corrects.number}
+          </a>
+        </p>
+      ) : null}
       <div class="wb-invoice-body">
         <form class="wb-invoice-form stack" onSubmit={(event) => event.preventDefault()}>
           <fieldset class="wb-invoice-fieldset" disabled={issued.value}>
+            {isCreditNote ? (
+              <div class="stack-sm" data-correction-reason="true">
+                <label for="invoice-reason">Motivo (obligatorio)</label>
+                <textarea
+                  id="invoice-reason"
+                  name="correctionReason"
+                  rows={2}
+                  required
+                  value={reason.value}
+                  onInput={(event) =>
+                    (reason.value = (event.currentTarget as HTMLTextAreaElement).value)
+                  }
+                />
+              </div>
+            ) : null}
             <InvoiceFields
               groups={shape.value.groups}
               read={(path) => readPath(data.value, path)}

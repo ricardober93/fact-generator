@@ -41,6 +41,8 @@ export function InvoiceToolbar({
   issued,
   numero,
   canPrint,
+  canCorrect,
+  invoiceId,
   onTemplate,
   onSave,
   onIssue,
@@ -52,6 +54,8 @@ export function InvoiceToolbar({
   issued: boolean
   numero: string
   canPrint: boolean
+  canCorrect: boolean
+  invoiceId: string | null
   onTemplate: (id: string) => void
   onSave: () => void
   onIssue: () => void
@@ -100,6 +104,14 @@ export function InvoiceToolbar({
           Guardar
         </button>
       )}
+      {canCorrect && invoiceId ? (
+        <form class="wb-toolbar-form" method="post" action="/invoices/_action/correct">
+          <input type="hidden" name="id" value={invoiceId} />
+          <button type="submit" class="btn btn-secondary btn-sm" data-action="correct">
+            Corregir
+          </button>
+        </form>
+      ) : null}
       {issued ? null : (
         <button type="button" class="btn btn-sm" data-action="issue" onClick={onIssue}>
           Emitir

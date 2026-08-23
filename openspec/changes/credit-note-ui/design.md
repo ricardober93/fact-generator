@@ -41,10 +41,16 @@ _Alternativa descartada_: inyectar un campo sintético en `IFormShape`. Ensucia 
 bien probada con un caso que no viene del documento, y obliga a que todo lo que consume el shape
 sepa distinguir campos reales de inventados.
 
-### 3. Corregir es una acción que redirige, no una que devuelve datos
+### 3. Corregir es un `<form>`, no una llamada desde el island
 
 `POST /invoices/_action/correct` crea la nota de crédito y responde con `redirect` al borrador nuevo,
-como ya hace `remove`. El island no tiene que saber montar la página siguiente.
+como ya hace `remove`. El botón es un formulario normal dentro de la barra —que no está dentro del
+formulario de la factura, así que no hay anidamiento— y el navegador sigue la redirección él solo.
+
+_Alternativa descartada_: `callAction` y después `window.location`. Es más código para reimplementar
+lo que el navegador ya hace, y deja de funcionar sin JavaScript. Se verificó que el runtime del
+framework no escucha `submit` en ninguna parte: la navegación boosted intercepta enlaces e historial,
+no envíos de formulario. Es el mismo patrón que la página de acceso.
 
 ### 4. La cabecera de corrección se pinta en el servidor
 

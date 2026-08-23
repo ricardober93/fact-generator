@@ -7,7 +7,17 @@ const TYPE_LABELS: Record<string, string> = {
   notaCredito: 'Nota de crédito',
 }
 
+function correctedIdsOf(invoices: Invoice[]): Set<string> {
+  const corrected = new Set<string>()
+  for (const invoice of invoices) {
+    const reference = invoice.corrects
+    if (reference && invoice.issued) corrected.add(reference.id)
+  }
+  return corrected
+}
+
 export function InvoiceList({ invoices }: { invoices: Invoice[] }): VNode {
+  const corrected = correctedIdsOf(invoices)
   return (
     <main class="container stack-lg">
       <div class="row">
@@ -40,6 +50,11 @@ export function InvoiceList({ invoices }: { invoices: Invoice[] }): VNode {
                     <span class={invoice.issued ? 'badge badge-success' : 'badge'}>
                       {invoice.issued ? 'Emitida' : 'Borrador'}
                     </span>
+                    {corrected.has(invoice.id) ? (
+                      <span class="badge" data-corrected="true">
+                        Corregida
+                      </span>
+                    ) : null}
                   </td>
                   <td>
                     <a href={`/invoices/${invoice.id}`}>{summary.numero || 'Sin número'}</a>

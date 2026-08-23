@@ -95,6 +95,16 @@ export const INVOICE_CSS = `
   white-space: nowrap;
 }
 
+.wb-toolbar-form {
+  display: contents;
+}
+
+.wb-correction-note {
+  margin: 0;
+  padding: var(--sp-2) var(--sp-4);
+  background: rgb(var(--c-bg-raised));
+}
+
 .wb-invoice-fieldset {
   display: contents;
   border: 0;
@@ -117,6 +127,7 @@ export const INVOICE_CSS = `
 
 @media print {
   .wb-invoice-toolbar,
+  .wb-correction-note,
   .wb-invoice-form {
     display: none !important;
   }

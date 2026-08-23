@@ -8,7 +8,14 @@ import {
   isPresent,
   isString,
 } from '@wabot-dev/framework'
-import { action, redirect, uiController, view, type VNode } from '@wabot-dev/framework/ui'
+import {
+  action,
+  redirect,
+  uiController,
+  view,
+  type UiRedirect,
+  type VNode,
+} from '@wabot-dev/framework/ui'
 import { RequireSession } from '../auth/RequireSession'
 import { assetsFor } from './embedAssets'
 import { AssetRepository } from './models/asset/AssetRepository'
@@ -53,6 +60,10 @@ export class SaveInvoiceDto {
   @isOptional()
   @isNumber()
   rev?: number
+
+  @isOptional()
+  @isString()
+  correctionReason?: string
 }
 
 export interface ISaveInvoiceReply {
@@ -186,6 +197,7 @@ export class InvoiceController {
       data: input.data,
       items: input.items,
       params: input.params ?? {},
+      correctionReason: input.correctionReason,
     }
     if (!input.id) {
       const created = await this.invoices.createInvoice(payload)
@@ -212,6 +224,12 @@ export class InvoiceController {
   }
 
   @action()
+  async correct(input: InvoiceIdDto): Promise<UiRedirect> {
+    const note = await this.invoices.createCreditNoteFor(input.id)
+    return redirect(`/invoices/${note.id}`)
+  }
+
+  @action()
   async remove(input: InvoiceIdDto) {
     const invoice = await this.invoices.find(input.id)
     if (!invoice) throw notFound()
@@ -234,6 +252,9 @@ export class InvoiceController {
         rev={invoice ? invoice.rev : 0}
         issued={invoice ? invoice.issued : false}
         numero={invoice ? invoice.numero : ''}
+        docType={invoice ? invoice.docType : 'factura'}
+        correctionReason={invoice ? invoice.correctionReason : ''}
+        corrects={invoice ? invoice.corrects : null}
         templateId={template.id}
         doc={template.doc}
         data={data}
