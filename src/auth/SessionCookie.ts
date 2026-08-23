@@ -23,7 +23,12 @@ export class SessionCookie {
     if (!session || typeof session.email !== 'string' || session.email.length === 0) {
       throw new Error('SessionCookie requires a session with an email')
     }
-    const access = await this.signer.signAccessToken({ email: session.email })
+    const access = await this.signer.signAccessToken({
+      email: session.email,
+      userId: session.userId,
+      role: session.role,
+      companyId: session.companyId,
+    })
     if (!access.token) throw new Error('The signer returned no access token')
     this.cookies.set(this.config.cookieName, access.token, this.options())
   }

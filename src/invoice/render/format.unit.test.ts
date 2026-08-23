@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { MISSING } from './bind'
+import { MISSING } from '../../kernel/paths'
 import { invoiceDocumentFixture } from './__fixtures__/invoiceDocument'
 import { formatOptionsOf, formatValue } from './format'
 import { resolveTheme } from './theme'

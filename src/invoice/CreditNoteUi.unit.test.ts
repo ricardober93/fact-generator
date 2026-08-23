@@ -1,4 +1,6 @@
 import assert from 'node:assert/strict'
+import { seedCompany } from '../company/__fixtures__/seededCompany'
+import { Issuance } from './Issuance'
 import test, { after, before } from 'node:test'
 import { container, InMemoryLocker, Locker } from '@wabot-dev/framework'
 import { useMemoryRepositories } from '@wabot-dev/framework/testing'
@@ -6,7 +8,7 @@ import { createSignedInHarness, type ISignedInHarness } from '../auth/__fixtures
 import { InvoiceController } from './InvoiceController'
 import type { Invoice, IInvoiceRecord } from './models/invoice/Invoice'
 import { InvoiceRepository } from './models/invoice/InvoiceRepository'
-import { NumberRangeRepository } from './models/numberRange/NumberRangeRepository'
+import { NumberRangeRepository } from '../numbering/app'
 import { TemplateRepository } from './models/template/TemplateRepository'
 import { findTemplatePreset } from './templates/presets'
 
@@ -23,20 +25,29 @@ const ITEMS: IInvoiceRecord[] = [{ descripcion: 'Producto uno', total: 70 }]
 
 let harness: ISignedInHarness
 let templateId = ''
+let companyId = ''
+
+function issuance(): Issuance {
+  return container.resolve(Issuance)
+}
 
 function invoices(): InvoiceRepository {
   return container.resolve(InvoiceRepository)
 }
 
 before(async () => {
+  companyId = await seedCompany()
   harness = await createSignedInHarness([InvoiceController])
   const doc = findTemplatePreset('chevron-slate')!.build()
-  templateId = (await container.resolve(TemplateRepository).createTemplate('Diseño', doc)).id
+  templateId = (
+    await container.resolve(TemplateRepository).createTemplate('Diseño', doc, companyId)
+  ).id
   const ranges = container.resolve(NumberRangeRepository)
-  for (const docType of ['factura', 'notaCredito'] as const) {
+  for (const series of ['factura', 'notaCredito'] as const) {
     await ranges.createRange({
-      docType,
-      prefix: docType === 'factura' ? 'FE' : 'NC',
+      owner: companyId,
+      series,
+      prefix: series === 'factura' ? 'FE' : 'NC',
       from: 1,
       to: 999,
       validFrom: Date.UTC(2020, 0, 1),
@@ -48,12 +59,12 @@ before(async () => {
 after(async () => await harness.close())
 
 async function draft(): Promise<Invoice> {
-  return invoices().createInvoice({ templateId, data: DATA, items: ITEMS })
+  return invoices().createInvoice({ templateId, companyId, data: DATA, items: ITEMS })
 }
 
 async function issued(): Promise<Invoice> {
   const invoice = await draft()
-  const result = await invoices().issueInvoice(invoice.id)
+  const result = await issuance().issueInvoice(invoice.id)
   if (result.status !== 'issued') throw new Error(`expected issued, got ${result.reason}`)
   return result.invoice
 }
@@ -98,7 +109,7 @@ test('correcting leaves the corrected invoice untouched', async () => {
 test('only an issued invoice offers to be corrected', async () => {
   const pending = await draft()
   const sent = await issued()
-  const note = await invoices().createCreditNoteFor(sent.id)
+  const note = await issuance().createCreditNoteFor(sent.id)
 
   const asDraft = await harness.get(`/invoices/${pending.id}`)
   const asIssued = await harness.get(`/invoices/${sent.id}`)
@@ -111,7 +122,7 @@ test('only an issued invoice offers to be corrected', async () => {
 
 test('a credit note asks for its reason and an invoice does not', async () => {
   const invoice = await issued()
-  const note = await invoices().createCreditNoteFor(invoice.id)
+  const note = await issuance().createCreditNoteFor(invoice.id)
 
   const notePage = await harness.get(`/invoices/${note.id}`)
   const invoicePage = await harness.get(`/invoices/${invoice.id}`)
@@ -123,7 +134,7 @@ test('a credit note asks for its reason and an invoice does not', async () => {
 
 test('the reason is saved with the draft and comes back', async () => {
   const invoice = await issued()
-  const note = await invoices().createCreditNoteFor(invoice.id)
+  const note = await issuance().createCreditNoteFor(invoice.id)
 
   await harness.action('/invoices/_action/save', {
     id: note.id,
@@ -140,7 +151,7 @@ test('the reason is saved with the draft and comes back', async () => {
 
 test('a credit note says and links which invoice it corrects', async () => {
   const invoice = await issued()
-  const note = await invoices().createCreditNoteFor(invoice.id)
+  const note = await issuance().createCreditNoteFor(invoice.id)
 
   const notePage = await harness.get(`/invoices/${note.id}`)
   const invoicePage = await harness.get(`/invoices/${invoice.id}`)
@@ -154,18 +165,19 @@ test('a credit note says and links which invoice it corrects', async () => {
 test('the list marks an invoice that an issued credit note corrects', async () => {
   const corrected = await issued()
   const untouched = await issued()
-  const note = await invoices().createCreditNoteFor(corrected.id)
+  const note = await issuance().createCreditNoteFor(corrected.id)
   await invoices().saveInvoice(
     note.id,
     {
       templateId,
+      companyId,
       data: note.invoiceData,
       items: note.invoiceItems,
       correctionReason: 'Anulación total',
     },
     note.rev,
   )
-  await invoices().issueInvoice(note.id)
+  await issuance().issueInvoice(note.id)
 
   const page = await harness.get('/invoices')
   const rowOf = (id: string) => page.text.slice(page.text.indexOf(`data-invoice="${id}"`))

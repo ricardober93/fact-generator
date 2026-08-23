@@ -7,7 +7,17 @@ import {
   isPresent,
   isString,
 } from '@wabot-dev/framework'
-import { action, redirect, uiController, view, type VNode } from '@wabot-dev/framework/ui'
+import { RequireAdmin } from '../auth/RequireRole'
+import {
+  action,
+  uiMiddleware,
+  redirect,
+  uiController,
+  view,
+  type VNode,
+} from '@wabot-dev/framework/ui'
+import { Auth } from '@wabot-dev/framework'
+import type { ISession } from '../auth/session'
 import { RequireSession } from '../auth/RequireSession'
 import { SignOutButton } from '../auth/ui/SignOutButton'
 import { assetsFor } from './embedAssets'
@@ -21,7 +31,7 @@ import { AppLayout } from './ui/AppLayout'
 import Editor from './ui/Editor.island'
 import { PresetGallery } from './ui/PresetGallery'
 import type { IAssetChoice } from './ui/propertyEditors'
-import { versionKey } from './versionKey'
+import { versionKey } from '../kernel/versionKey'
 
 export class CreateTemplateDto {
   @isString()
@@ -147,13 +157,16 @@ function TemplateList({ templates }: { templates: Template[] }): VNode {
 @uiController({ path: '/templates', app: true, layout: AppLayout, middlewares: [RequireSession] })
 export class TemplateController {
   constructor(
+    private readonly auth: Auth<ISession>,
     private readonly templates: TemplateRepository,
     private readonly assets: AssetRepository,
   ) {}
 
   @view({ title: 'Plantillas' })
   async index(): Promise<VNode> {
-    return <TemplateList templates={await this.templates.findAll()} />
+    return (
+      <TemplateList templates={await this.templates.findAllFor(this.auth.require().companyId)} />
+    )
   }
 
   @view({
@@ -179,11 +192,16 @@ export class TemplateController {
   @action()
   async create(input: CreateTemplateDto) {
     const doc = documentForPreset(input.preset)
-    const template = await this.templates.createTemplate(input.name, doc)
+    const template = await this.templates.createTemplate(
+      input.name,
+      doc,
+      this.auth.require().companyId,
+    )
     return redirect(`/templates/${template.id}`)
   }
 
   @action()
+  @uiMiddleware(RequireAdmin)
   async save(input: SaveTemplateDto): Promise<ISaveTemplateReply> {
     const result = await this.templates.saveDocument(input.id, input.doc, input.rev)
     return { status: result.status, rev: result.template.rev }

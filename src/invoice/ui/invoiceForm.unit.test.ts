@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { findTemplatePreset } from '../templates/presets'
+import { writePath } from '../../kernel/paths'
 import { formShapeOf } from './invoiceForm'
 import {
   applyFieldChange,
@@ -10,7 +11,6 @@ import {
   removeLine,
   withLineAmount,
   withTotals,
-  writePath,
 } from './invoiceEdits'
 
 const DOC = findTemplatePreset('chevron-slate')!.build()
@@ -19,7 +19,7 @@ test('the fields come from the schema, grouped by their first segment', () => {
   const shape = formShapeOf(DOC)
   const names = shape.groups.map((group) => group.name)
 
-  assert.deepEqual(names, ['emisor', 'cliente', 'factura'])
+  assert.deepEqual(names, ['cliente', 'factura'])
   const cliente = shape.groups.find((group) => group.name === 'cliente')!
   assert.ok(cliente.fields.some((field) => field.path === 'cliente.nombre'))
 })
@@ -60,9 +60,9 @@ test('formShapeOf refuses a document without a schema', () => {
 })
 
 test('a nested path is written without mutating the source', () => {
-  const data = { cliente: { nombre: 'Ana' } }
+  const data: Record<string, unknown> = { cliente: { nombre: 'Ana' } }
 
-  const next = writePath(data, 'cliente.direccion', 'Calle 1')
+  const next = writePath<unknown>(data, 'cliente.direccion', 'Calle 1')
 
   assert.equal(readPath(next, 'cliente.direccion'), 'Calle 1')
   assert.equal(readPath(next, 'cliente.nombre'), 'Ana')
@@ -125,6 +125,17 @@ test('a hand corrected total survives a later unrelated field change', () => {
   const next = applyFieldChange(corrected, items, 'cliente.nombre', 'Ana')
 
   assert.equal(readPath(next, 'factura.total'), 95)
+})
+
+test('the issuer is not a field anybody types either', () => {
+  const shape = formShapeOf(DOC)
+  const paths = shape.groups.flatMap((group) => group.fields.map((field) => field.path))
+
+  assert.ok(DOC.dataSchema.some((entry) => entry.path === 'emisor.nombre'))
+  assert.equal(
+    paths.some((path) => path.startsWith('emisor.')),
+    false,
+  )
 })
 
 test('the invoice number is not a field anybody types', () => {

@@ -8,20 +8,38 @@ import {
   isPresent,
   isString,
 } from '@wabot-dev/framework'
+import { RequireWriter } from '../auth/RequireRole'
+import {
+  CatalogSearchDto,
+  InvoiceIdDto,
+  IssueInvoiceDto,
+  NewInvoiceDto,
+  SaveInvoiceDto,
+  type IIssueInvoiceReply,
+  type ISaveInvoiceReply,
+} from './InvoiceDtos'
+import { versionOfInvoice } from './invoiceVersion'
 import {
   action,
+  uiMiddleware,
   redirect,
   uiController,
   view,
   type UiRedirect,
   type VNode,
 } from '@wabot-dev/framework/ui'
+import { Auth } from '@wabot-dev/framework'
+import { UserRepository } from '../auth/models/UserRepository'
+import type { ISession } from '../auth/session'
+import { CatalogSource, type ICatalogItem } from '../catalog/app'
+import { CompanyRepository } from '../company/app'
 import { RequireSession } from '../auth/RequireSession'
 import { assetsFor } from './embedAssets'
 import { AssetRepository } from './models/asset/AssetRepository'
 import type { Invoice, IInvoiceRecord } from './models/invoice/Invoice'
 import type { IArithmeticIssue } from './models/invoice/checkArithmetic'
-import { InvoiceRepository, type IIssueRejection } from './models/invoice/InvoiceRepository'
+import { InvoiceRepository } from './models/invoice/InvoiceRepository'
+import { Issuance, type IIssueRejection } from './Issuance'
 import { Template } from './models/template/Template'
 import { TemplateRepository } from './models/template/TemplateRepository'
 import { dataFit, templateAccepts, type IDataFit } from './render/dataFit'
@@ -29,72 +47,7 @@ import type { IDocument } from './render/document'
 import { AppLayout } from './ui/AppLayout'
 import InvoiceEditor from './ui/InvoiceEditor.island'
 import type { ITemplateChoice } from './ui/InvoiceToolbar'
-import { InvoiceList } from './ui/InvoiceList'
-import { versionKey } from './versionKey'
-
-export class InvoiceIdDto {
-  @isString()
-  @isNotEmpty()
-  id!: string
-}
-
-export class SaveInvoiceDto {
-  @isOptional()
-  @isString()
-  id?: string
-
-  @isString()
-  @isNotEmpty()
-  templateId!: string
-
-  @isPresent()
-  data!: IInvoiceRecord
-
-  @isArray()
-  items!: IInvoiceRecord[]
-
-  @isOptional()
-  @isPresent()
-  params?: Record<string, string>
-
-  @isOptional()
-  @isNumber()
-  rev?: number
-
-  @isOptional()
-  @isString()
-  correctionReason?: string
-}
-
-export interface ISaveInvoiceReply {
-  status: 'saved' | 'conflict'
-  id: string
-  rev: number
-}
-
-export class IssueInvoiceDto {
-  @isString()
-  @isNotEmpty()
-  id!: string
-
-  @isOptional()
-  @isString()
-  prefix?: string
-
-  @isOptional()
-  @isNumber()
-  number?: number
-}
-
-export type IIssueInvoiceReply =
-  | { status: 'issued'; numero: string; rev: number }
-  | { status: 'rejected'; reason: IIssueRejection; issues: IArithmeticIssue[] }
-
-export class NewInvoiceDto {
-  @isOptional()
-  @isString()
-  templateId?: string
-}
+import { InvoiceList, type ICompanyChoice } from './ui/InvoiceList'
 
 const NO_MISMATCH: IDataFit = { missing: [], orphan: [] }
 
@@ -126,40 +79,45 @@ function choicesFor(
   return pool.map((template): ITemplateChoice => ({ id: template.id, name: template.name }))
 }
 
-export async function versionOfInvoice({ id }: { id: string }): Promise<string> {
-  const invoice = await container.resolve(InvoiceRepository).find(id)
-  if (!invoice) return 'missing'
-  const templates = await container.resolve(TemplateRepository).findAll()
-  const chosen = templates.find((template) => template.id === invoice.templateId)
-  return versionKey({
-    data: invoice.invoiceData,
-    items: invoice.invoiceItems,
-    params: invoice.params,
-    templateId: invoice.templateId,
-    status: invoice.status,
-    number: invoice.number,
-    doc: chosen ? chosen.doc : null,
-    pool: templates.map((template) => [template.id, template.name, template.rev]),
-  })
-}
-
 @uiController({ path: '/invoices', app: true, layout: AppLayout, middlewares: [RequireSession] })
 export class InvoiceController {
   constructor(
     private readonly invoices: InvoiceRepository,
+    private readonly issuance: Issuance,
+    private readonly auth: Auth<ISession>,
+    private readonly users: UserRepository,
+    private readonly companies: CompanyRepository,
+    private readonly catalog: CatalogSource,
     private readonly templates: TemplateRepository,
     private readonly assets: AssetRepository,
   ) {}
 
+  private async myCompanies(): Promise<ICompanyChoice[]> {
+    const user = await this.users.find(this.auth.require().userId)
+    if (!user || user.companyIds.length < 2) return []
+    const mine = await Promise.all(user.companyIds.map((id) => this.companies.find(id)))
+    return mine.filter((one) => one !== null).map((one) => ({ id: one.id, name: one.name }))
+  }
+
+  private get companyId(): string {
+    return this.auth.require().companyId
+  }
+
   @view({ title: 'Facturas' })
   async index(): Promise<VNode> {
-    const stored = await this.invoices.findAll()
-    return <InvoiceList invoices={stored} />
+    const stored = await this.invoices.findAllFor(this.companyId)
+    return (
+      <InvoiceList
+        invoices={stored}
+        companies={await this.myCompanies()}
+        activeCompanyId={this.companyId}
+      />
+    )
   }
 
   @view({ path: 'new', title: 'Nueva factura' })
   async create(input: NewInvoiceDto): Promise<VNode> {
-    const templates = await this.templates.findAll()
+    const templates = await this.templates.findAllFor(this.companyId)
     if (templates.length === 0) throw noTemplates()
     const chosen = templates.find((template) => template.id === input.templateId) ?? templates[0]
     return this.editor(null, chosen, {}, [], {}, templates, NO_MISMATCH)
@@ -167,9 +125,9 @@ export class InvoiceController {
 
   @view({ path: ':id', title: 'Factura', swr: { version: versionOfInvoice } })
   async edit(input: InvoiceIdDto): Promise<VNode> {
-    const invoice = await this.invoices.find(input.id)
+    const invoice = await this.invoices.findFor(this.companyId, input.id)
     if (!invoice) throw notFound()
-    const templates = await this.templates.findAll()
+    const templates = await this.templates.findAllFor(this.companyId)
     const template = templates.find((candidate) => candidate.id === invoice.templateId)
     if (!template) throw notFound()
     return this.editor(
@@ -191,12 +149,14 @@ export class InvoiceController {
   }
 
   @action()
+  @uiMiddleware(RequireWriter)
   async save(input: SaveInvoiceDto): Promise<ISaveInvoiceReply> {
     const payload = {
       templateId: input.templateId,
       data: input.data,
       items: input.items,
       params: input.params ?? {},
+      companyId: this.companyId,
       correctionReason: input.correctionReason,
     }
     if (!input.id) {
@@ -212,8 +172,9 @@ export class InvoiceController {
   }
 
   @action()
+  @uiMiddleware(RequireWriter)
   async issue(input: IssueInvoiceDto): Promise<IIssueInvoiceReply> {
-    const result = await this.invoices.issueInvoice(input.id, {
+    const result = await this.issuance.issueInvoice(input.id, {
       prefix: input.prefix,
       number: input.number,
     })
@@ -224,14 +185,21 @@ export class InvoiceController {
   }
 
   @action()
+  async searchCatalog(input: CatalogSearchDto): Promise<{ items: ICatalogItem[] }> {
+    return { items: await this.catalog.search(input.text) }
+  }
+
+  @action()
+  @uiMiddleware(RequireWriter)
   async correct(input: InvoiceIdDto): Promise<UiRedirect> {
-    const note = await this.invoices.createCreditNoteFor(input.id)
+    const note = await this.issuance.createCreditNoteFor(input.id)
     return redirect(`/invoices/${note.id}`)
   }
 
   @action()
+  @uiMiddleware(RequireWriter)
   async remove(input: InvoiceIdDto) {
-    const invoice = await this.invoices.find(input.id)
+    const invoice = await this.invoices.findFor(this.companyId, input.id)
     if (!invoice) throw notFound()
     await this.invoices.deleteDraft(invoice)
     return redirect('/invoices')
@@ -253,6 +221,7 @@ export class InvoiceController {
         issued={invoice ? invoice.issued : false}
         numero={invoice ? invoice.numero : ''}
         docType={invoice ? invoice.docType : 'factura'}
+        catalogEnabled={this.catalog.configured}
         correctionReason={invoice ? invoice.correctionReason : ''}
         corrects={invoice ? invoice.corrects : null}
         templateId={template.id}

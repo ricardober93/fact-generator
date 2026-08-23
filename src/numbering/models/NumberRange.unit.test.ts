@@ -7,7 +7,7 @@ const VALID_TO = Date.UTC(2026, 11, 31)
 
 function range(overrides: Partial<INumberRangeData> = {}): NumberRange {
   return new NumberRange({
-    docType: 'factura',
+    series: 'factura',
     prefix: 'FE',
     from: 1000,
     to: 1999,

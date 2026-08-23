@@ -7,7 +7,8 @@ import {
   type IPropValue,
   type ITheme,
 } from '../document'
-import type { IResolved } from '../bind'
+import type { IResolved } from '../../../kernel/paths'
+
 import type { IFormatOptions } from '../format'
 
 export interface IRenderContext {

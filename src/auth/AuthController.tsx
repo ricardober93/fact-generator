@@ -17,13 +17,25 @@ import {
 } from '@wabot-dev/framework/ui'
 import type { Request, Response } from 'express'
 import { WABOT_DESIGN_CSS } from '../design/wabotDesignCss'
-import { AuthCredentials } from './AuthCredentials'
+import { Auth, CustomError } from '@wabot-dev/framework'
+import { AuthSeed } from './AuthSeed'
+import { UserRepository } from './models/UserRepository'
 import { localPathOr } from './localPath'
 import { LoginAttempts } from './LoginAttempts'
 import { SessionCookie } from './SessionCookie'
+import type { ISession } from './session'
 import { LOGIN_CSS, LoginPage } from './ui/LoginPage'
 
 const DEFAULT_TARGET = '/invoices'
+
+function notAMember(): CustomError {
+  return new CustomError({
+    message: 'The user does not belong to that company',
+    humanMessage: 'No perteneces a esa empresa.',
+    code: 'NOT_A_MEMBER',
+    httpCode: 403,
+  })
+}
 const UNKNOWN_ORIGIN = 'unknown'
 
 const BAD_CREDENTIALS_CODE = 'credenciales'
@@ -42,6 +54,11 @@ export class LoginViewDto {
   @isOptional()
   @isString()
   error?: string
+}
+
+export class SwitchCompanyDto {
+  @isString()
+  companyId!: string
 }
 
 export class SignInDto {
@@ -70,7 +87,9 @@ function loginDocument(next: string, error: string): VNode {
 @uiController('/login')
 export class AuthController {
   constructor(
-    private readonly credentials: AuthCredentials,
+    private readonly users: UserRepository,
+    private readonly seed: AuthSeed,
+    private readonly auth: Auth<ISession>,
     private readonly attempts: LoginAttempts,
     private readonly session: SessionCookie,
     private readonly guard: JwtGuardMiddleware,
@@ -93,13 +112,34 @@ export class AuthController {
     if (this.attempts.isBlocked(origin, Date.now())) {
       return redirect(this.loginAgain(target, BLOCKED_CODE))
     }
-    if (!this.credentials.matches(input.email, input.password)) {
+    await this.seed.ensureFirstAdmin()
+    const user = await this.users.authenticate(input.email, input.password)
+    if (!user) {
       this.attempts.registerFailure(origin, Date.now())
       return redirect(this.loginAgain(target, BAD_CREDENTIALS_CODE))
     }
     this.attempts.registerSuccess(origin)
-    await this.session.open({ email: this.credentials.email })
+    await this.session.open({
+      email: user.email,
+      userId: user.id,
+      role: user.role,
+      companyId: user.companyIds[0] ?? '',
+    })
     return redirect(target)
+  }
+
+  @action()
+  async switchCompany(input: SwitchCompanyDto): Promise<UiRedirect> {
+    const current = this.auth.require()
+    const user = await this.users.find(current.userId)
+    if (!user || !user.belongsTo(input.companyId)) throw notAMember()
+    await this.session.open({
+      email: user.email,
+      userId: user.id,
+      role: user.role,
+      companyId: input.companyId,
+    })
+    return redirect('/invoices')
   }
 
   private loginAgain(target: string, error: string): string {

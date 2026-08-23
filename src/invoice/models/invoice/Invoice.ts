@@ -1,12 +1,12 @@
 import { Entity, type IEntityData } from '@wabot-dev/framework'
-import { MISSING, resolvePath } from '../../render/bind'
+import { MISSING, resolvePath, writePath } from '../../../kernel/paths'
+import type { IDocType } from '../docType'
 import {
   INVOICE_CUSTOMER_PATH,
   INVOICE_DATE_PATH,
   INVOICE_NUMBER_PATH,
   INVOICE_TOTAL_PATH,
 } from '../../render/invoiceFields'
-import type { IDocType } from '../docType'
 
 export type IInvoiceValue =
   | string
@@ -30,6 +30,8 @@ export interface IIssueStamp {
   prefix: string
   number: number
   issuedAt: number
+  issuer: Record<string, string>
+  issuedBy: { userId: string; name: string }
 }
 
 export interface IInvoiceSummary {
@@ -52,16 +54,9 @@ export interface IInvoiceData extends IEntityData {
   issuedAt?: number
   corrects?: ICorrectedDocument
   correctionReason?: string
-}
-
-function withPath(root: IInvoiceRecord, path: string, value: string): IInvoiceRecord {
-  const [head, ...rest] = path.split('.')
-  if (!head) return root
-  if (rest.length === 0) return { ...root, [head]: value }
-  const child = root[head]
-  const isRecord = !!child && typeof child === 'object' && !Array.isArray(child)
-  const branch = isRecord ? (child as IInvoiceRecord) : {}
-  return { ...root, [head]: withPath(branch, rest.join('.'), value) }
+  companyId?: string
+  issuer?: Record<string, string>
+  issuedBy?: { userId: string; name: string }
 }
 
 export class Invoice extends Entity<IInvoiceData> {
@@ -95,6 +90,18 @@ export class Invoice extends Entity<IInvoiceData> {
 
   get issuedAt(): Date | null {
     return this.data.issuedAt === undefined ? null : new Date(this.data.issuedAt)
+  }
+
+  get companyId(): string {
+    return this.data.companyId ?? ''
+  }
+
+  get issuer(): Record<string, string> {
+    return this.data.issuer ?? {}
+  }
+
+  get issuedBy(): { userId: string; name: string } | null {
+    return this.data.issuedBy ?? null
   }
 
   get corrects(): ICorrectedDocument | null {
@@ -158,10 +165,16 @@ export class Invoice extends Entity<IInvoiceData> {
     this.update({
       status: 'emitida',
       docType: this.docType,
+      issuer: stamp.issuer,
+      issuedBy: stamp.issuedBy,
       prefix: stamp.prefix,
       number: stamp.number,
       issuedAt: stamp.issuedAt,
-      data: withPath(this.data.data, INVOICE_NUMBER_PATH, `${stamp.prefix}${stamp.number}`),
+      data: writePath<IInvoiceValue>(
+        this.data.data,
+        INVOICE_NUMBER_PATH,
+        `${stamp.prefix}${stamp.number}`,
+      ),
     })
   }
 

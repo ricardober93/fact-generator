@@ -1,4 +1,4 @@
-import { Env, Password, singleton } from '@wabot-dev/framework'
+import { Env, singleton } from '@wabot-dev/framework'
 
 function requiredValue(env: Env, name: string): string {
   const value = env.requireString(name).trim()
@@ -9,18 +9,11 @@ function requiredValue(env: Env, name: string): string {
 @singleton()
 export class AuthCredentials {
   readonly email: string
-  private readonly passwordHash: string
+  readonly password: string
 
   constructor(env: Env) {
     if (!env) throw new Error('AuthCredentials requires the environment')
     this.email = requiredValue(env, 'AUTH_EMAIL').toLowerCase()
-    this.passwordHash = Password.hash({ password: requiredValue(env, 'AUTH_PASSWORD') })
-  }
-
-  matches(email: unknown, password: unknown): boolean {
-    if (typeof email !== 'string' || typeof password !== 'string') return false
-    const sameEmail = email.trim().toLowerCase() === this.email
-    const samePassword = Password.isValid({ password, hash: this.passwordHash })
-    return sameEmail && samePassword
+    this.password = requiredValue(env, 'AUTH_PASSWORD')
   }
 }

@@ -1,17 +1,24 @@
 import { CrudRepository, CustomError, Locker, query, repository } from '@wabot-dev/framework'
 import { isDocType, type IDocType } from '../docType'
-import { chooseRange, type IRangeRejection } from '../numberRange/chooseRange'
-import { NumberRangeRepository } from '../numberRange/NumberRangeRepository'
-import { assertDataSatisfiesTemplate } from '../requiredData'
+import { CompanyRepository } from '../../../company/app'
+import { writePath } from '../../../kernel/paths'
+import type { IDocument } from '../../render/document'
+import { ISSUER_ROOT } from '../../render/invoiceFields'
+import { assertDataSatisfiesTemplate, isSystemWritten } from '../requiredData'
 import { TemplateRepository } from '../template/TemplateRepository'
-import { checkArithmetic, type IArithmeticIssue } from './checkArithmetic'
-import { Invoice, type ICorrectedDocument, type IInvoiceRecord } from './Invoice'
+import {
+  Invoice,
+  type ICorrectedDocument,
+  type IInvoiceRecord,
+  type IInvoiceValue,
+} from './Invoice'
 
 export interface IInvoiceInput {
   templateId: string
   data: IInvoiceRecord
   items: IInvoiceRecord[]
   params?: Record<string, string>
+  companyId: string
   docType?: IDocType
   corrects?: ICorrectedDocument
   correctionReason?: string
@@ -20,28 +27,6 @@ export interface IInvoiceInput {
 export type ISaveInvoiceResult =
   | { status: 'saved'; invoice: Invoice }
   | { status: 'conflict'; invoice: Invoice }
-
-export type IIssueRejection =
-  | IRangeRejection
-  | 'ARITHMETIC_MISMATCH'
-  | 'NUMBER_ALREADY_USED'
-  | 'MISSING_REASON'
-  | 'CORRECTED_NOT_FOUND'
-  | 'CORRECTED_NOT_ISSUED'
-
-export type IIssueInvoiceResult =
-  | { status: 'issued'; invoice: Invoice }
-  | { status: 'rejected'; reason: IIssueRejection; issues: IArithmeticIssue[] }
-
-export interface IIssueInvoiceInput {
-  number?: number
-  prefix?: string
-  at?: number
-}
-
-function rejected(reason: IIssueRejection, issues: IArithmeticIssue[] = []): IIssueInvoiceResult {
-  return { status: 'rejected', reason, issues }
-}
 
 function unknownTemplate(templateId: string): CustomError {
   return new CustomError({
@@ -52,7 +37,7 @@ function unknownTemplate(templateId: string): CustomError {
   })
 }
 
-function alreadyIssued(): CustomError {
+export function alreadyIssued(): CustomError {
   return new CustomError({
     message: 'An issued document cannot be written again',
     humanMessage: 'Una factura emitida ya no se puede modificar.',
@@ -61,7 +46,7 @@ function alreadyIssued(): CustomError {
   })
 }
 
-function notIssued(): CustomError {
+export function notIssued(): CustomError {
   return new CustomError({
     message: 'Only an issued document can be corrected',
     humanMessage: 'Solo se puede corregir una factura ya emitida.',
@@ -70,7 +55,7 @@ function notIssued(): CustomError {
   })
 }
 
-function notFound(): CustomError {
+export function notFound(): CustomError {
   return new CustomError({
     message: 'Invoice not found',
     humanMessage: 'Esa factura no existe.',
@@ -83,13 +68,26 @@ function notFound(): CustomError {
 export class InvoiceRepository extends CrudRepository<Invoice> {
   constructor(
     private readonly templates: TemplateRepository,
-    private readonly ranges: NumberRangeRepository,
+    private readonly companies: CompanyRepository,
     private readonly locker: Locker,
   ) {
     super()
   }
 
   declare findAll: () => Promise<Invoice[]>
+
+  @query() declare findByCompanyId: (companyId: string) => Promise<Invoice[]>
+
+  async findAllFor(companyId: string): Promise<Invoice[]> {
+    if (typeof companyId !== 'string' || companyId.length === 0) return []
+    return this.findByCompanyId(companyId)
+  }
+
+  async findFor(companyId: string, id: string): Promise<Invoice | null> {
+    const found = await this.find(id)
+    if (!found || found.companyId !== companyId) return null
+    return found
+  }
 
   @query() declare findByDocTypeAndPrefixAndNumber: (
     docType: IDocType,
@@ -100,7 +98,13 @@ export class InvoiceRepository extends CrudRepository<Invoice> {
   async createInvoice(input: IInvoiceInput): Promise<Invoice> {
     const checked = await this.checked(input)
     const docType = isDocType(input.docType) ? input.docType : 'factura'
-    const invoice = new Invoice({ ...checked, rev: 1, docType, corrects: input.corrects })
+    const invoice = new Invoice({
+      ...checked,
+      rev: 1,
+      docType,
+      corrects: input.corrects,
+      companyId: input.companyId,
+    })
     await this.create(invoice)
     return invoice
   }
@@ -128,79 +132,27 @@ export class InvoiceRepository extends CrudRepository<Invoice> {
     })
   }
 
-  async issueInvoice(id: string, input: IIssueInvoiceInput = {}): Promise<IIssueInvoiceResult> {
-    if (typeof id !== 'string' || id.length === 0) {
-      throw new CustomError({ message: 'Invoice id is required', httpCode: 400 })
-    }
-    const at = Number.isFinite(input.at) ? (input.at as number) : Date.now()
-    return this.locker.withKey(`invoice:${id}`).run(async () => {
-      const invoice = await this.find(id)
-      if (!invoice) throw notFound()
-      if (invoice.issued) return { status: 'issued', invoice }
-      const issues = checkArithmetic(invoice.invoiceData, invoice.invoiceItems)
-      if (issues.length > 0) return rejected('ARITHMETIC_MISMATCH', issues)
-      const correction = await this.checkCorrection(invoice)
-      if (correction) return rejected(correction)
-      const ranges = await this.ranges.findByDocType(invoice.docType)
-      const choice = chooseRange({ ranges, at, number: input.number, prefix: input.prefix })
-      if (choice.status === 'rejected') return rejected(choice.reason)
-      return this.stamp(invoice, choice.range.id, { ...input, at })
-    })
-  }
-
-  private async stamp(
-    invoice: Invoice,
-    rangeId: string,
-    input: IIssueInvoiceInput & { at: number },
-  ): Promise<IIssueInvoiceResult> {
-    return this.locker.withKey(`range:${rangeId}`).run(async () => {
-      const range = await this.ranges.findOrThrow(rangeId)
-      const choice = chooseRange({ ranges: [range], ...input })
-      if (choice.status === 'rejected') return rejected(choice.reason)
-      if (await this.isTaken(invoice.docType, range.prefix, choice.number)) {
-        return rejected('NUMBER_ALREADY_USED')
-      }
-      range.advancePast(choice.number)
-      await this.ranges.update(range)
-      invoice.applyIssue({ prefix: range.prefix, number: choice.number, issuedAt: input.at })
-      await this.update(invoice)
-      return { status: 'issued', invoice }
-    })
-  }
-
-  private async checkCorrection(invoice: Invoice): Promise<IIssueRejection | null> {
-    if (invoice.docType !== 'notaCredito') return null
-    if (invoice.correctionReason.trim().length === 0) return 'MISSING_REASON'
-    const corrected = invoice.corrects
-    if (!corrected) return 'CORRECTED_NOT_FOUND'
-    const target = await this.find(corrected.id)
-    if (!target) return 'CORRECTED_NOT_FOUND'
-    return target.issued ? null : 'CORRECTED_NOT_ISSUED'
-  }
-
-  async createCreditNoteFor(invoiceId: string): Promise<Invoice> {
-    const target = await this.find(invoiceId)
-    if (!target) throw notFound()
-    if (!target.issued || target.number === null) throw notIssued()
-    return this.createInvoice({
-      templateId: target.templateId,
-      data: target.invoiceData,
-      items: target.invoiceItems,
-      params: target.params,
-      docType: 'notaCredito',
-      corrects: { id: target.id, prefix: target.prefix, number: target.number },
-    })
-  }
-
   async deleteDraft(invoice: Invoice): Promise<void> {
     if (!invoice) throw notFound()
     if (invoice.issued) throw alreadyIssued()
     await this.delete(invoice)
   }
 
-  private async isTaken(docType: IDocType, prefix: string, number: number): Promise<boolean> {
-    const sharing = await this.findByDocTypeAndPrefixAndNumber(docType, prefix, number)
-    return sharing.length > 0
+  private async withIssuer(
+    doc: IDocument,
+    companyId: string,
+    data: IInvoiceRecord,
+  ): Promise<IInvoiceRecord> {
+    const company = companyId ? await this.companies.find(companyId) : null
+    if (!company) return data
+    const declared = new Set(doc.dataSchema.map((entry) => entry.path))
+    let next = data
+    for (const [key, value] of Object.entries(company.issuerFields)) {
+      const path = `${ISSUER_ROOT}.${key}`
+      if (!declared.has(path)) continue
+      next = writePath<IInvoiceValue>(next, path, value)
+    }
+    return next
   }
 
   private async checked(input: IInvoiceInput): Promise<{
@@ -218,8 +170,8 @@ export class InvoiceRepository extends CrudRepository<Invoice> {
     }
     const template = await this.templates.find(input.templateId)
     if (!template) throw unknownTemplate(input.templateId)
-    const data = input.data ?? {}
-    assertDataSatisfiesTemplate(template.doc, data, input.items)
+    const data = await this.withIssuer(template.doc, input.companyId, input.data ?? {})
+    assertDataSatisfiesTemplate(template.doc, data, input.items, isSystemWritten)
     return {
       templateId: input.templateId,
       data,

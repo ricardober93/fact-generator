@@ -1,38 +1,10 @@
+import { MISSING, resolvePath, segmentsOf, type IResolved } from '../../kernel/paths'
 import type { IDocument } from './document'
-
-export const MISSING = Symbol('missing')
-
-export type IResolved = string | number | boolean | typeof MISSING
 
 export interface IBindingScope {
   data: Record<string, unknown>
   item?: unknown
   itemRoot: string
-}
-
-function segmentsOf(path: string): string[] {
-  return path
-    .replace(/\[(\d+)\]/g, '.$1')
-    .split('.')
-    .filter((segment) => segment.length > 0)
-}
-
-function walk(root: unknown, segments: string[]): unknown {
-  let current = root
-  for (const segment of segments) {
-    if (current === null || current === undefined) return undefined
-    if (typeof current !== 'object') return undefined
-    current = (current as Record<string, unknown>)[segment]
-  }
-  return current
-}
-
-export function resolvePath(root: unknown, path: string): IResolved {
-  if (typeof path !== 'string' || path.length === 0) return MISSING
-  const value = walk(root, segmentsOf(path))
-  if (value === null || value === undefined) return MISSING
-  if (typeof value === 'object') return MISSING
-  return value as IResolved
 }
 
 export function resolveInScope(scope: IBindingScope, path: string): IResolved {

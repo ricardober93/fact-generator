@@ -1,13 +1,15 @@
 import assert from 'node:assert/strict'
+import { seedCompany } from '../company/__fixtures__/seededCompany'
+import { Issuance } from './Issuance'
 import test, { after, before } from 'node:test'
 import { container, InMemoryLocker, Locker } from '@wabot-dev/framework'
 import { useMemoryRepositories } from '@wabot-dev/framework/testing'
 import { createSignedInHarness, type ISignedInHarness } from '../auth/__fixtures__/signedIn'
 import { InvoiceController } from './InvoiceController'
-import { NumberRangeController } from './NumberRangeController'
+import { NumberRangeController } from '../numbering/app'
 import type { IInvoiceRecord } from './models/invoice/Invoice'
 import { InvoiceRepository } from './models/invoice/InvoiceRepository'
-import { NumberRangeRepository } from './models/numberRange/NumberRangeRepository'
+import { NumberRangeRepository } from '../numbering/app'
 import { TemplateRepository } from './models/template/TemplateRepository'
 import { findTemplatePreset } from './templates/presets'
 
@@ -24,17 +26,26 @@ const ITEMS: IInvoiceRecord[] = [{ descripcion: 'Producto uno', total: 70 }]
 
 let harness: ISignedInHarness
 let templateId = ''
+let companyId = ''
+
+function issuance(): Issuance {
+  return container.resolve(Issuance)
+}
 
 function invoices(): InvoiceRepository {
   return container.resolve(InvoiceRepository)
 }
 
 before(async () => {
+  companyId = await seedCompany()
   harness = await createSignedInHarness([InvoiceController, NumberRangeController])
   const doc = findTemplatePreset('chevron-slate')!.build()
-  templateId = (await container.resolve(TemplateRepository).createTemplate('Diseño', doc)).id
+  templateId = (
+    await container.resolve(TemplateRepository).createTemplate('Diseño', doc, companyId)
+  ).id
   await container.resolve(NumberRangeRepository).createRange({
-    docType: 'factura',
+    owner: companyId,
+    series: 'factura',
     prefix: 'FE',
     from: 1,
     to: 999,
@@ -46,7 +57,7 @@ before(async () => {
 after(async () => await harness.close())
 
 async function draft() {
-  return invoices().createInvoice({ templateId, data: DATA, items: ITEMS })
+  return invoices().createInvoice({ templateId, companyId, data: DATA, items: ITEMS })
 }
 
 test('a draft offers issuing, and saving', async () => {
@@ -73,6 +84,7 @@ test('the issue action reports the number it landed on', async () => {
 test('the issue action reports a refusal as a value, not as a failure', async () => {
   const invoice = await invoices().createInvoice({
     templateId,
+    companyId,
     data: { ...DATA, factura: { numero: 'X', base: 100, impuestos: 19, total: 999 } },
     items: ITEMS,
   })
@@ -88,7 +100,7 @@ test('the issue action reports a refusal as a value, not as a failure', async ()
 
 test('an issued document is shown but not edited', async () => {
   const invoice = await draft()
-  await invoices().issueInvoice(invoice.id)
+  await issuance().issueInvoice(invoice.id)
 
   const page = await harness.get(`/invoices/${invoice.id}`)
 
@@ -101,7 +113,7 @@ test('an issued document is shown but not edited', async () => {
 test('the list tells a draft from an issued document', async () => {
   const pending = await draft()
   const sent = await draft()
-  await invoices().issueInvoice(sent.id)
+  await issuance().issueInvoice(sent.id)
 
   const page = await harness.get('/invoices')
 
@@ -117,7 +129,7 @@ test('the numbering screen lists the ranges and creates one', async () => {
   const created = await harness.action(
     '/ranges/_action/create',
     {
-      docType: 'notaCredito',
+      series: 'notaCredito',
       prefix: 'NC',
       from: '1',
       to: '99',
@@ -128,14 +140,16 @@ test('the numbering screen lists the ranges and creates one', async () => {
   )
 
   assert.ok(created.status >= 200)
-  const stored = await container.resolve(NumberRangeRepository).findByDocType('notaCredito')
+  const stored = await container
+    .resolve(NumberRangeRepository)
+    .findBySeries(companyId, 'notaCredito')
   assert.equal(stored.length, 1)
   assert.equal(stored[0]?.prefix, 'NC')
 })
 
 test('retouching the template reaches an issued document without touching its data', async () => {
   const invoice = await draft()
-  await invoices().issueInvoice(invoice.id)
+  await issuance().issueInvoice(invoice.id)
   const frozen = (await invoices().findOrThrow(invoice.id)).invoiceData
 
   const templates = container.resolve(TemplateRepository)

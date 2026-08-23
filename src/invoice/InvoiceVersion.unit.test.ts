@@ -1,10 +1,12 @@
 import assert from 'node:assert/strict'
+import { seedCompany } from '../company/__fixtures__/seededCompany'
+import { Issuance } from './Issuance'
 import test, { before } from 'node:test'
 import { container, InMemoryLocker, Locker } from '@wabot-dev/framework'
 import { useMemoryRepositories } from '@wabot-dev/framework/testing'
-import { versionOfInvoice } from './InvoiceController'
+import { versionOfInvoice } from './invoiceVersion'
 import { InvoiceRepository } from './models/invoice/InvoiceRepository'
-import { NumberRangeRepository } from './models/numberRange/NumberRangeRepository'
+import { NumberRangeRepository } from '../numbering/app'
 import { TemplateRepository } from './models/template/TemplateRepository'
 import { invoiceDocumentFixture } from './render/__fixtures__/invoiceDocument'
 import { INVOICE_DATA, INVOICE_ITEMS } from './render/__fixtures__/renderToHtml'
@@ -23,6 +25,11 @@ const ADDS_UP: IInvoiceRecord = {
 
 let invoiceId = ''
 let templateId = ''
+let companyId = ''
+
+function issuance(): Issuance {
+  return container.resolve(Issuance)
+}
 
 function invoices(): InvoiceRepository {
   return container.resolve(InvoiceRepository)
@@ -33,10 +40,12 @@ function templates(): TemplateRepository {
 }
 
 before(async () => {
-  const template = await templates().createTemplate('Base', invoiceDocumentFixture())
+  companyId = await seedCompany()
+  const template = await templates().createTemplate('Base', invoiceDocumentFixture(), companyId)
   templateId = template.id
   const invoice = await invoices().createInvoice({
     templateId,
+    companyId,
     data: DATA,
     items: ITEMS,
   })
@@ -58,6 +67,7 @@ test('saving different data changes the key', async () => {
     invoiceId,
     {
       templateId,
+      companyId,
       data: { ...DATA, factura: { ...(DATA.factura as IInvoiceRecord), numero: 'A-999' } },
       items: ITEMS,
     },
@@ -81,7 +91,7 @@ test('editing the document of its template changes the key', async () => {
 test('creating another template changes the key, because it joins the picker', async () => {
   const before = await versionOfInvoice({ id: invoiceId })
 
-  await templates().createTemplate('Otra', invoiceDocumentFixture())
+  await templates().createTemplate('Otra', invoiceDocumentFixture(), companyId)
 
   assert.notEqual(await versionOfInvoice({ id: invoiceId }), before)
 })
@@ -96,17 +106,23 @@ test('an invoice that does not exist still yields a key instead of throwing', as
 test('issuing changes the key, so no stale page survives it', async () => {
   const ranges = container.resolve(NumberRangeRepository)
   await ranges.createRange({
-    docType: 'factura',
+    owner: companyId,
+    series: 'factura',
     prefix: 'VK',
     from: 1,
     to: 99,
     validFrom: Date.UTC(2026, 0, 1),
     validTo: Date.UTC(2026, 11, 31),
   })
-  const draft = await invoices().createInvoice({ templateId, data: ADDS_UP, items: ITEMS })
+  const draft = await invoices().createInvoice({
+    templateId,
+    companyId,
+    data: ADDS_UP,
+    items: ITEMS,
+  })
   const before = await versionOfInvoice({ id: draft.id })
 
-  const result = await invoices().issueInvoice(draft.id, {
+  const result = await issuance().issueInvoice(draft.id, {
     prefix: 'VK',
     at: Date.UTC(2026, 7, 22),
   })
@@ -116,11 +132,21 @@ test('issuing changes the key, so no stale page survives it', async () => {
 })
 
 test('two documents with the same data and different state do not share a key', async () => {
-  const first = await invoices().createInvoice({ templateId, data: ADDS_UP, items: ITEMS })
-  const second = await invoices().createInvoice({ templateId, data: ADDS_UP, items: ITEMS })
+  const first = await invoices().createInvoice({
+    templateId,
+    companyId,
+    data: ADDS_UP,
+    items: ITEMS,
+  })
+  const second = await invoices().createInvoice({
+    templateId,
+    companyId,
+    data: ADDS_UP,
+    items: ITEMS,
+  })
   assert.equal(await versionOfInvoice({ id: first.id }), await versionOfInvoice({ id: second.id }))
 
-  await invoices().issueInvoice(second.id, { prefix: 'VK', at: Date.UTC(2026, 7, 22) })
+  await issuance().issueInvoice(second.id, { prefix: 'VK', at: Date.UTC(2026, 7, 22) })
 
   assert.notEqual(
     await versionOfInvoice({ id: first.id }),

@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict'
+import { seedCompany } from '../company/__fixtures__/seededCompany'
 import test, { after, before } from 'node:test'
 import { container, InMemoryLocker, Locker } from '@wabot-dev/framework'
 import { useMemoryRepositories } from '@wabot-dev/framework/testing'
@@ -22,11 +23,15 @@ const ITEMS: IInvoiceRecord[] = [{ descripcion: 'Producto uno', total: 70 }]
 
 let harness: ISignedInHarness
 let templateId = ''
+let companyId = ''
 
 before(async () => {
+  companyId = await seedCompany()
   harness = await createSignedInHarness([InvoiceController])
   const doc = findTemplatePreset('chevron-slate')!.build()
-  const template = await container.resolve(TemplateRepository).createTemplate('Chevron', doc)
+  const template = await container
+    .resolve(TemplateRepository)
+    .createTemplate('Chevron', doc, companyId)
   templateId = template.id
 })
 
@@ -65,7 +70,8 @@ test('saving creates the invoice', async () => {
   const body = await result.json()
 
   const stored = await invoices().find(body.id)
-  assert.deepEqual(stored?.invoiceData, DATA)
+  assert.equal((stored?.invoiceData.cliente as IInvoiceRecord).nombre, 'Ana Pérez')
+  assert.ok(stored?.invoiceData.emisor)
 })
 
 test('saving reports the revision it landed on', async () => {
@@ -151,9 +157,12 @@ test('the list shows number, customer, date and total', async () => {
 test('an invoice whose data no longer fits its design opens and says what drifted', async () => {
   const doc = findTemplatePreset('chevron-slate')!.build()
   doc.dataSchema = [...doc.dataSchema, { path: 'cliente.nif', type: 'string', required: false }]
-  const template = await container.resolve(TemplateRepository).createTemplate('Con NIF', doc)
+  const template = await container
+    .resolve(TemplateRepository)
+    .createTemplate('Con NIF', doc, companyId)
   const invoice = await invoices().createInvoice({
     templateId: template.id,
+    companyId,
     data: { ...DATA, cliente: { nombre: 'Ana', apodo: 'Anita' } },
     items: ITEMS,
   })
@@ -166,7 +175,12 @@ test('an invoice whose data no longer fits its design opens and says what drifte
 })
 
 test('an invoice that fits shows no mismatch notice', async () => {
-  const invoice = await invoices().createInvoice({ templateId, data: DATA, items: ITEMS })
+  const invoice = await invoices().createInvoice({
+    templateId,
+    companyId,
+    data: DATA,
+    items: ITEMS,
+  })
 
   const page = await harness.get(`/invoices/${invoice.id}`)
 

@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict'
+import { seedCompany } from '../../../company/__fixtures__/seededCompany'
 import test from 'node:test'
 import { container, InMemoryLocker, Locker } from '@wabot-dev/framework'
 import { useMemoryRepositories } from '@wabot-dev/framework/testing'
@@ -8,6 +9,8 @@ import { InvoiceRepository } from './InvoiceRepository'
 import { Invoice, type IInvoiceRecord } from './Invoice'
 
 useMemoryRepositories()
+
+let companyId = ''
 container.register(Locker, { useToken: InMemoryLocker })
 
 const DATA: IInvoiceRecord = {
@@ -26,9 +29,15 @@ function numbered(numero: string): IInvoiceRecord {
   return { ...DATA, factura: { ...(DATA.factura as IInvoiceRecord), numero } }
 }
 
+test.before(async () => {
+  companyId = await seedCompany()
+})
+
 async function seedTemplate(): Promise<string> {
   const doc = findTemplatePreset('chevron-slate')!.build()
-  const template = await container.resolve(TemplateRepository).createTemplate('Diseño', doc)
+  const template = await container
+    .resolve(TemplateRepository)
+    .createTemplate('Diseño', doc, companyId)
   return template.id
 }
 
@@ -37,6 +46,7 @@ test('an invoice round trips with exactly what it was given', async () => {
 
   const created = await invoices().createInvoice({
     templateId,
+    companyId,
     data: DATA,
     items: ITEMS,
     params: { moneda: 'USD' },
@@ -45,7 +55,9 @@ test('an invoice round trips with exactly what it was given', async () => {
 
   assert.ok(found)
   assert.equal(found.templateId, templateId)
-  assert.deepEqual(found.invoiceData, DATA)
+  assert.deepEqual(found.invoiceData.cliente, DATA.cliente)
+  assert.deepEqual(found.invoiceData.factura, DATA.factura)
+  assert.equal((found.invoiceData.emisor as IInvoiceRecord).nombre, 'Acme S.A.S.')
   assert.deepEqual(found.invoiceItems, ITEMS)
   assert.deepEqual(found.params, { moneda: 'USD' })
 })
@@ -53,7 +65,12 @@ test('an invoice round trips with exactly what it was given', async () => {
 test('an invoice stores no rendered paper of any kind', async () => {
   const templateId = await seedTemplate()
 
-  const created = await invoices().createInvoice({ templateId, data: DATA, items: ITEMS })
+  const created = await invoices().createInvoice({
+    templateId,
+    companyId,
+    data: DATA,
+    items: ITEMS,
+  })
   const stored = JSON.stringify((await invoices().find(created.id)) ?? {})
 
   assert.equal(stored.includes('<div'), false)
@@ -67,7 +84,7 @@ test('an invoice missing a required path is never persisted', async () => {
   const before = (await invoices().findAll()).length
 
   await assert.rejects(
-    () => invoices().createInvoice({ templateId, data: { emisor: {} }, items: ITEMS }),
+    () => invoices().createInvoice({ templateId, companyId, data: { emisor: {} }, items: ITEMS }),
     /Missing required data/,
   )
 
@@ -76,7 +93,7 @@ test('an invoice missing a required path is never persisted', async () => {
 
 test('an unknown template is rejected', async () => {
   await assert.rejects(
-    () => invoices().createInvoice({ templateId: 'nope', data: DATA, items: ITEMS }),
+    () => invoices().createInvoice({ templateId: 'nope', companyId, data: DATA, items: ITEMS }),
     /Unknown template/,
   )
 })
@@ -88,7 +105,7 @@ test('totals that do not match the lines are stored exactly as sent', async () =
     factura: { numero: 'F-1', total: 9999, base: 1, fecha: '2026-08-01' },
   }
 
-  const created = await invoices().createInvoice({ templateId, data, items: ITEMS })
+  const created = await invoices().createInvoice({ templateId, companyId, data, items: ITEMS })
   const found = await invoices().find(created.id)
 
   assert.deepEqual(found!.invoiceData.factura, {
@@ -101,12 +118,18 @@ test('totals that do not match the lines are stored exactly as sent', async () =
 
 test('saving an invoice replaces its content and keeps its id', async () => {
   const templateId = await seedTemplate()
-  const created = await invoices().createInvoice({ templateId, data: DATA, items: ITEMS })
+  const created = await invoices().createInvoice({
+    templateId,
+    companyId,
+    data: DATA,
+    items: ITEMS,
+  })
 
   const result = await invoices().saveInvoice(
     created.id,
     {
       templateId,
+      companyId,
       data: { ...DATA, cliente: { nombre: 'Luis Gómez' } },
       items: [],
     },
@@ -122,7 +145,12 @@ test('saving an invoice replaces its content and keeps its id', async () => {
 test('the summary reads the conventional paths and tolerates their absence', async () => {
   const templateId = await seedTemplate()
 
-  const created = await invoices().createInvoice({ templateId, data: DATA, items: ITEMS })
+  const created = await invoices().createInvoice({
+    templateId,
+    companyId,
+    data: DATA,
+    items: ITEMS,
+  })
 
   assert.deepEqual(created.summary, {
     numero: 'F-2026-014',
@@ -135,18 +163,28 @@ test('the summary reads the conventional paths and tolerates their absence', asy
 test('a new invoice starts at revision one', async () => {
   const templateId = await seedTemplate()
 
-  const created = await invoices().createInvoice({ templateId, data: DATA, items: ITEMS })
+  const created = await invoices().createInvoice({
+    templateId,
+    companyId,
+    data: DATA,
+    items: ITEMS,
+  })
 
   assert.equal(created.rev, 1)
 })
 
 test('saving with the stored revision raises the counter', async () => {
   const templateId = await seedTemplate()
-  const created = await invoices().createInvoice({ templateId, data: DATA, items: ITEMS })
+  const created = await invoices().createInvoice({
+    templateId,
+    companyId,
+    data: DATA,
+    items: ITEMS,
+  })
 
   const result = await invoices().saveInvoice(
     created.id,
-    { templateId, data: numbered('A-2'), items: ITEMS },
+    { templateId, companyId, data: numbered('A-2'), items: ITEMS },
     created.rev,
   )
 
@@ -156,16 +194,21 @@ test('saving with the stored revision raises the counter', async () => {
 
 test('saving with a stale revision writes absolutely nothing', async () => {
   const templateId = await seedTemplate()
-  const created = await invoices().createInvoice({ templateId, data: DATA, items: ITEMS })
+  const created = await invoices().createInvoice({
+    templateId,
+    companyId,
+    data: DATA,
+    items: ITEMS,
+  })
   await invoices().saveInvoice(
     created.id,
-    { templateId, data: numbered('A-2'), items: ITEMS },
+    { templateId, companyId, data: numbered('A-2'), items: ITEMS },
     created.rev,
   )
 
   const late = await invoices().saveInvoice(
     created.id,
-    { templateId, data: numbered('A-999'), items: [] },
+    { templateId, companyId, data: numbered('A-999'), items: [] },
     created.rev,
   )
 
@@ -178,16 +221,21 @@ test('saving with a stale revision writes absolutely nothing', async () => {
 
 test('of two saves from the same starting point only the first lands', async () => {
   const templateId = await seedTemplate()
-  const created = await invoices().createInvoice({ templateId, data: DATA, items: ITEMS })
+  const created = await invoices().createInvoice({
+    templateId,
+    companyId,
+    data: DATA,
+    items: ITEMS,
+  })
 
   const first = await invoices().saveInvoice(
     created.id,
-    { templateId, data: numbered('primero'), items: ITEMS },
+    { templateId, companyId, data: numbered('primero'), items: ITEMS },
     1,
   )
   const second = await invoices().saveInvoice(
     created.id,
-    { templateId, data: numbered('segundo'), items: ITEMS },
+    { templateId, companyId, data: numbered('segundo'), items: ITEMS },
     1,
   )
 
@@ -203,7 +251,7 @@ test('an invoice stored without a counter saves by sending zero', async () => {
 
   const result = await invoices().saveInvoice(
     legacy.id,
-    { templateId, data: numbered('A-nuevo'), items: ITEMS },
+    { templateId, companyId, data: numbered('A-nuevo'), items: ITEMS },
     0,
   )
 
@@ -217,13 +265,13 @@ test('an invoice stored without a counter still conflicts if someone got there f
   await invoices().create(legacy)
   await invoices().saveInvoice(
     legacy.id,
-    { templateId, data: numbered('otra-pestaña'), items: ITEMS },
+    { templateId, companyId, data: numbered('otra-pestaña'), items: ITEMS },
     0,
   )
 
   const late = await invoices().saveInvoice(
     legacy.id,
-    { templateId, data: numbered('llego-tarde'), items: ITEMS },
+    { templateId, companyId, data: numbered('llego-tarde'), items: ITEMS },
     0,
   )
 
@@ -235,6 +283,6 @@ test('saving an invoice that does not exist is an error, not a conflict', async 
   const templateId = await seedTemplate()
 
   await assert.rejects(() =>
-    invoices().saveInvoice('no-existe', { templateId, data: DATA, items: ITEMS }, 1),
+    invoices().saveInvoice('no-existe', { templateId, companyId, data: DATA, items: ITEMS }, 1),
   )
 })

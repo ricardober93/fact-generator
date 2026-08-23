@@ -14,8 +14,17 @@ context: |
 
   ## Decisiones cerradas (no reabrir sin decisión explícita)
 
-  - Documento PRESENTACIONAL, no fiscal. Sin XML, firma digital, QR/CUFE ni catálogos
-    SRI/DIAN/CFDI. Nada de dominio tributario entra en las specs.
+  OJO AL ESCRIBIR TAREAS: la arquitectura vive en DOS archivos, ARCHITECTURE.md y este.
+  Una tarea que diga solo «actualizar ARCHITECTURE.md» deja este briefing atrás, y este es
+  el que se inyecta aquí. Ya pasó una vez. Escribe siempre «ARCHITECTURE.md y config.yaml».
+
+  - La PLANTILLA es presentacional; el DOCUMENTO EMITIDO es un registro fiscal. Dentro:
+    estado borrador/emitida, consecutivo desde un rango con prefijo y vigencia, congelación
+    de los datos al emitir, nota de crédito con motivo en vez de anulación. Fuera: XML,
+    firma digital, CUFE, QR y catálogos SRI/DIAN/CFDI, que son aditivos sobre lo congelado.
+  - Se sigue repintando con la plantilla ACTUAL, también lo emitido: lo congelado son los
+    datos, no el diseño. Un emitido al que le falte un dato obligatorio no se imprime.
+  - ANULAR NO EXISTE: ni acción, ni estado, ni borrado de un emitido. Solo nota de crédito.
   - Layout por BANDAS (header / detailHeader / detail / summary / pageFooter) con
     posicionamiento absoluto de bloques DENTRO de cada banda. Es el modelo de los
     motores de reportes. Resuelve N ítems y multipágina sin motor de paginación propio.
@@ -23,7 +32,13 @@ context: |
     número sirve en editor, pantalla y papel, sin factor de escala.
   - Las coordenadas x/y de un bloque son relativas A SU BANDA, no a la página. Es lo que
     permite que la banda detail se repita por ítem.
-  - Embebido SOLO por el producto propio (mismo origen). Sin multi-tenant, sin API keys,
+  - Multi-empresa por sesión: el usuario pertenece a una o varias empresas y la sesión
+    firmada dice en cuál opera. La identidad vive en la base; AUTH_EMAIL/AUTH_PASSWORD son
+    solo la semilla del primer administrador. Tres roles: administrador, cajero, lectura,
+    con guardas por ruta (@uiMiddleware), no por controlador.
+  - El emisor y el número los escribe el SISTEMA: no son campos del formulario y no se le
+    exigen a la persona al validar. En el handoff sí, porque allí los pone quien llama.
+  - Embebido SOLO por el producto propio (mismo origen). Sin API keys,
     sin CSP por tenant, sin tokens firmados: las cookies de sesión ya funcionan.
     Corolario: el embed va autenticado, así que NUNCA puede marcarse @view({ static }),
     porque una vista static se salta los middlewares.
@@ -45,19 +60,21 @@ context: |
   Layout canónico del framework: carpeta de feature con los controladores en su raíz,
   models/ dentro, ui/ para páginas y componentes.
 
-    src/invoice/
-      TemplateController.tsx   @uiController({ path: '/templates', app: true })
-      EmbedController.tsx      @uiController('/embed')
-      render/                  isomorfo: render(doc, data, params, assets) -> JSX.
-                               Corre en Node (SSR del embed) y en el navegador (preview
-                               del editor). Es el MISMO código: el preview no puede
-                               divergir del render porque no hay dos implementaciones.
-        render.tsx  bind.ts  theme.ts  blocks/
-      models/
-        template/Template.ts + TemplateRepository.ts
-        asset/Asset.ts + AssetRepository.ts
-      ui/
-        pages/  *.island.tsx
+    src/
+      kernel/      paths.ts cents.ts versionKey.ts   lo compartido, con puerta
+      auth/        User + sesión + RequireSession/RequireRole
+      company/     la empresa emisora
+      numbering/   numera series con dueño; no sabe qué es una factura
+      catalog/     origen opcional de líneas (sin CATALOG_URL no existe)
+      invoice/     el documento, su diseño y su emisión
+        Issuance.ts              servicio: emitir y corregir
+        render/                  isomorfo: render(doc, data, params, assets) -> JSX.
+                                 Corre en Node (SSR del embed) y en el navegador
+                                 (preview del editor). Es el MISMO código: el preview
+                                 no puede divergir porque no hay dos implementaciones.
+        models/  ui/  templates/
+
+    Cada módulo declara su superficie en app.ts. Nadie importa el interior de otro.
 
   UNA sola regla de dependencia, y no necesita test: render/ importa solo
   '@wabot-dev/framework/ui', nunca la raíz '@wabot-dev/framework'. /ui es la única
@@ -66,22 +83,46 @@ context: |
   La herramienta ya es el test: no se escribe un test de arquitectura.
 
   Corolario: render/ no puede usar Money (big.js, vive en la raíz) ni los validadores
-  @isString. Formatea con Intl.NumberFormat, que es nativo e isomorfo. La aritmética
-  con Money vive en los controladores.
+  @isString. Formatea con Intl.NumberFormat, que es nativo e isomorfo. La aritmética de
+  importes usa los enteros de céntimos de kernel/cents.ts —los mismos que calcula el
+  formulario— y no Money: comprobar con otra aritmética podría discrepar en el borde del
+  redondeo y rechazar un documento correcto.
 
   SIN barrels index.ts: el runner importa todos los archivos de src/ por los
   side-effects de los decoradores, así que un barrel no encapsula nada que nadie pueda
   hacer cumplir; solo añade un archivo por carpeta y la trampa clásica de ciclos.
-  SIN archivo central de registro: una feature nueva es una carpeta hermana de invoice/.
+  SIN archivo central de registro: un módulo nuevo es una carpeta hermana en src/.
+
+  UN MÓDULO ES UNA APLICACIÓN: declara en app.ts lo único importable desde fuera, y su
+  interior (models/, ui/, servicios) no se toca. Un módulo es una aplicación si y solo si
+  nadie importa su interior, que es la condición para sacarlo a otro despliegue cambiando
+  el transporte. app.ts NO es un barril: enumera lo poco que se ofrece.
+  Módulos hoy: kernel/ auth/ company/ numbering/ invoice/.
+
+  DOS EJES DE CRECIMIENTO Y SOLO DOS: el documento crece por el registro de bloques; el
+  sistema crece por módulos hermanos.
+
+  CUATRO REGLAS DE FRONTERA, iguales dentro y fuera del proceso: se expone lo que el
+  consumidor necesita y no el esquema propio; las referencias son opacas (se guardan y se
+  devuelven, no se interpretan); quien guarda congela lo que enseña en vez de resolverlo al
+  leer; todo acoplamiento es explícito (app.ts dentro, variable de entorno fuera).
 
   Único punto de extensión: el registro de tipos de bloque en invoice/render/blocks/.
   Un tipo de bloque es UN archivo que aporta schema + defaults + render + Inspector, y
   con eso aparece en la paleta, se valida, se renderiza y tiene panel de propiedades.
   No se añaden otras abstracciones de plugin, ni hooks, ni eventos.
 
-  No se construye: carpeta shared/, capa de servicios que reenvía al repositorio, test
-  de arquitectura, event bus interno, CQRS, DTOs duplicados por capa, monorepo, ni
-  interfaces con una sola implementación.
+  No se construye: shared/ SIN CRITERIO DE ENTRADA, capa de servicios que REENVÍA al
+  repositorio, test de arquitectura, event bus interno, CQRS, DTOs duplicados por capa,
+  monorepo, ni interfaces con una sola implementación.
+
+  Sí existen, con matiz: src/kernel/ es lo compartido CON PUERTA —sin dominio, dos
+  consumidores ya existentes, sin estado ni IO, y su llegada tiene que borrar código; ver
+  src/kernel/README.md—. Y el servicio que ORQUESTA VARIOS agregados sí (Issuance recibe
+  dos repositorios y un Locker); la diferencia con el que reenvía se ve en el constructor.
+
+  OJO: estas decisiones están duplicadas en ARCHITECTURE.md. Si cambias una, cambia las dos.
+  El porqué de cada una está allí; aquí solo está el qué.
 
   ## Stack
 

@@ -65,7 +65,13 @@ test('issuing stamps the five fields the system decides', () => {
   const invoice = invoiceWith(1)
   const at = Date.UTC(2026, 7, 22, 10, 30)
 
-  invoice.applyIssue({ prefix: 'FE', number: 1247, issuedAt: at })
+  invoice.applyIssue({
+    prefix: 'FE',
+    number: 1247,
+    issuedAt: at,
+    issuer: {},
+    issuedBy: { userId: '', name: '' },
+  })
 
   assert.equal(invoice.status, 'emitida')
   assert.equal(invoice.issued, true)
@@ -79,7 +85,13 @@ test('the issued number overwrites the one somebody had typed', () => {
 
   assert.equal(invoice.numero, 'A-1')
 
-  invoice.applyIssue({ prefix: 'FE', number: 1247, issuedAt: Date.now() })
+  invoice.applyIssue({
+    prefix: 'FE',
+    number: 1247,
+    issuedAt: Date.now(),
+    issuer: {},
+    issuedBy: { userId: '', name: '' },
+  })
 
   assert.equal(invoice.numero, 'FE1247')
   assert.equal((invoice.invoiceData.factura as IInvoiceRecord).numero, 'FE1247')
@@ -88,7 +100,13 @@ test('the issued number overwrites the one somebody had typed', () => {
 test('issuing writes the number without losing its neighbours in the record', () => {
   const invoice = invoiceWith(1)
 
-  invoice.applyIssue({ prefix: 'FE', number: 7, issuedAt: Date.now() })
+  invoice.applyIssue({
+    prefix: 'FE',
+    number: 7,
+    issuedAt: Date.now(),
+    issuer: {},
+    issuedBy: { userId: '', name: '' },
+  })
 
   assert.equal((invoice.invoiceData.factura as IInvoiceRecord).total, 100)
 })
@@ -96,7 +114,13 @@ test('issuing writes the number without losing its neighbours in the record', ()
 test('issuing a document with an empty prefix keeps the bare consecutive', () => {
   const invoice = invoiceWith(1)
 
-  invoice.applyIssue({ prefix: '', number: 42, issuedAt: Date.now() })
+  invoice.applyIssue({
+    prefix: '',
+    number: 42,
+    issuedAt: Date.now(),
+    issuer: {},
+    issuedBy: { userId: '', name: '' },
+  })
 
   assert.equal(invoice.numero, '42')
 })
@@ -104,5 +128,13 @@ test('issuing a document with an empty prefix keeps the bare consecutive', () =>
 test('issuing refuses a number that is not a whole consecutive', () => {
   const invoice = invoiceWith(1)
 
-  assert.throws(() => invoice.applyIssue({ prefix: 'FE', number: 1.5, issuedAt: Date.now() }))
+  assert.throws(() =>
+    invoice.applyIssue({
+      prefix: 'FE',
+      number: 1.5,
+      issuedAt: Date.now(),
+      issuer: {},
+      issuedBy: { userId: '', name: '' },
+    }),
+  )
 })

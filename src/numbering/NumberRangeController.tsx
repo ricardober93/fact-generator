@@ -1,6 +1,8 @@
 import { CustomError, isNotEmpty, isOptional, isString } from '@wabot-dev/framework'
+import { RequireAdmin } from '../auth/RequireRole'
 import {
   action,
+  uiMiddleware,
   redirect,
   uiController,
   view,
@@ -8,9 +10,9 @@ import {
   type VNode,
 } from '@wabot-dev/framework/ui'
 import { RequireSession } from '../auth/RequireSession'
-import { isDocType, type IDocType } from './models/docType'
-import { NumberRangeRepository } from './models/numberRange/NumberRangeRepository'
-import { AppLayout } from './ui/AppLayout'
+import { CompanyRepository } from '../company/app'
+import { NumberRangeRepository } from './models/NumberRangeRepository'
+import { AppLayout } from '../invoice/ui/AppLayout'
 import { NumberRangePage } from './ui/NumberRangePage'
 
 const DAY_MS = 24 * 60 * 60 * 1000
@@ -18,7 +20,7 @@ const DAY_MS = 24 * 60 * 60 * 1000
 export class CreateRangeDto {
   @isString()
   @isNotEmpty()
-  docType!: string
+  series!: string
 
   @isOptional()
   @isString()
@@ -50,11 +52,6 @@ function badInput(humanMessage: string): CustomError {
   })
 }
 
-function asDocType(value: string): IDocType {
-  if (!isDocType(value)) throw badInput('Ese tipo de documento no existe.')
-  return value
-}
-
 function asWhole(value: string, label: string): number {
   const parsed = Number(value)
   if (!Number.isInteger(parsed) || parsed < 1) throw badInput(`${label} tiene que ser un entero.`)
@@ -69,7 +66,10 @@ function asDay(value: string, label: string, endOfDay = false): number {
 
 @uiController({ path: '/ranges', app: true, layout: AppLayout, middlewares: [RequireSession] })
 export class NumberRangeController {
-  constructor(private readonly ranges: NumberRangeRepository) {}
+  constructor(
+    private readonly ranges: NumberRangeRepository,
+    private readonly companies: CompanyRepository,
+  ) {}
 
   @view({ title: 'Numeración' })
   async index(): Promise<VNode> {
@@ -77,9 +77,13 @@ export class NumberRangeController {
   }
 
   @action()
+  @uiMiddleware(RequireAdmin)
   async create(input: CreateRangeDto): Promise<UiRedirect> {
+    const company = await this.companies.current()
+    if (!company) throw badInput('Crea primero la empresa: un rango pertenece a un NIT.')
     await this.ranges.createRange({
-      docType: asDocType(input.docType),
+      owner: company.id,
+      series: input.series,
       prefix: input.prefix ?? '',
       from: asWhole(input.from, 'Desde'),
       to: asWhole(input.to, 'Hasta'),

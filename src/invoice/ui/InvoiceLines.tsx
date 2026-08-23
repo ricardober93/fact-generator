@@ -78,9 +78,75 @@ function LineRow({
   )
 }
 
+export interface ICatalogChoice {
+  ref: string
+  code: string
+  label: string
+  unitPrice: number
+}
+
+function CatalogPicker({
+  enabled,
+  text,
+  results,
+  notice,
+  onText,
+  onSearch,
+  onPick,
+}: {
+  enabled: boolean
+  text: string
+  results: ICatalogChoice[]
+  notice: string
+  onText: (value: string) => void
+  onSearch: () => void
+  onPick: (item: ICatalogChoice) => void
+}): VNode | null {
+  if (!enabled) return null
+  return (
+    <div class="stack-sm" data-catalog="true">
+      <div class="row">
+        <input
+          type="search"
+          placeholder="Buscar en el catálogo"
+          value={text}
+          data-catalog-text="true"
+          onInput={(event) => onText((event.currentTarget as HTMLInputElement).value)}
+        />
+        <button
+          type="button"
+          class="btn btn-secondary btn-sm"
+          data-action="catalog"
+          onClick={onSearch}
+        >
+          Buscar
+        </button>
+      </div>
+      {notice ? (
+        <p class="muted" data-catalog-notice="true">
+          {notice}
+        </p>
+      ) : null}
+      {results.map((item) => (
+        <button
+          key={item.ref}
+          type="button"
+          class="btn btn-ghost btn-sm"
+          data-catalog-item={item.ref}
+          onClick={() => onPick(item)}
+        >
+          {item.code ? `${item.code} · ` : ''}
+          {item.label}
+        </button>
+      ))}
+    </div>
+  )
+}
+
 export function InvoiceLines({
   columns,
   items,
+  catalog,
   onCell,
   onMove,
   onRemove,
@@ -88,6 +154,7 @@ export function InvoiceLines({
 }: {
   columns: IFormField[]
   items: IFormRecord[]
+  catalog: Parameters<typeof CatalogPicker>[0]
   onCell: (index: number, key: string, value: IFormValue) => void
   onMove: (index: number, target: number) => void
   onRemove: (index: number) => void
@@ -96,6 +163,7 @@ export function InvoiceLines({
   return (
     <fieldset class="stack-sm">
       <legend>Líneas</legend>
+      <CatalogPicker {...catalog} />
       {items.length === 0 ? <p class="muted">Todavía no hay líneas.</p> : null}
       {items.length > 0 ? (
         <table class="wb-invoice-lines">
