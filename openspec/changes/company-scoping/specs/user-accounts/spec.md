@@ -2,7 +2,8 @@
 
 ### Requirement: Cada persona entra con su propia credencial
 
-DEBE (MUST) existir una entidad de usuario con correo, contraseña y empresa. El acceso DEBE
+DEBE (MUST) existir una entidad de usuario con correo, contraseña, rol y **las empresas a las que
+pertenece**. El acceso DEBE
 comprobarse contra ella. La contraseña NO DEBE (MUST NOT) guardarse en claro: se guarda su hash, con
 la utilidad de contraseñas del framework.
 
@@ -52,12 +53,44 @@ quién las está pidiendo.
 #### Scenario: La sesión lleva la identidad
 
 - **WHEN** un usuario abre sesión
-- **THEN** la sesión permite recuperar su identificador, su rol y su empresa
+- **THEN** la sesión permite recuperar su identificador, su rol y la empresa en la que opera
 
 #### Scenario: Un usuario dado de baja no entra
 
 - **WHEN** se da de baja a un usuario y este vuelve a intentar entrar
 - **THEN** el acceso se rechaza igual que unas credenciales erróneas
+
+### Requirement: El usuario elige en qué empresa opera, y puede cambiar
+
+La sesión DEBE (MUST) declarar cuál de las empresas del usuario está activa, y todo el alcance —
+documentos, plantillas, assets y rangos— DEBE resolverse contra ella.
+
+DEBE existir una acción para cambiar de empresa. Cambiar DEBE comprobar que el usuario pertenece a la
+empresa pedida y DEBE volver a firmar la sesión: la empresa activa viaja dentro del token, nunca en
+una cookie aparte ni en el estado del cliente. Con dos sitios donde vive la respuesta, la que manda
+acaba siendo la que alguien olvidó comprobar.
+
+Un usuario que pertenece a una sola empresa NO DEBE (MUST NOT) tener que elegir nada.
+
+#### Scenario: Cambiar de empresa cambia lo que se ve
+
+- **WHEN** un usuario que pertenece a dos empresas cambia a la segunda y abre el listado
+- **THEN** ve los documentos de la segunda y ninguno de la primera
+
+#### Scenario: No se cambia a una empresa ajena
+
+- **WHEN** se pide cambiar a una empresa a la que el usuario no pertenece
+- **THEN** la petición se rechaza y la empresa activa no cambia
+
+#### Scenario: La empresa activa sobrevive a la navegación
+
+- **WHEN** se cambia de empresa y después se abren varias páginas
+- **THEN** todas se resuelven contra la empresa elegida, sin volver a preguntarla
+
+#### Scenario: Con una sola empresa no se elige
+
+- **WHEN** un usuario pertenece a una única empresa
+- **THEN** opera en ella sin que se le pida escogerla
 
 ### Requirement: Cada documento guarda quién lo emitió
 

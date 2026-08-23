@@ -35,17 +35,38 @@ Que después se puedan tener varias sale gratis del mismo modelo. Al revés no: 
 multi-empresa lleva a un `companyId` que nadie lee, que fue exactamente el motivo por el que este
 cambio quedó fuera de `invoice-issuance`.
 
-### 2. La segunda empresa está **cerrada hasta que haya usuarios**
+### 2. La empresa activa vive **en la sesión**, y se cambia con una acción
 
-Si hay dos empresas y la identidad viene del entorno, nada dice en cuál se está operando. No es una
-limitación que se elija: es que la pregunta no tiene respuesta.
+Un usuario pertenece a una o varias empresas (`companyIds`). La sesión declara **cuál está activa**, y
+todo el alcance —documentos, plantillas, assets, rangos— se resuelve contra ella. Cambiar de empresa
+es una acción explícita que comprueba la pertenencia y **vuelve a firmar la sesión**.
 
-Por eso crear una segunda empresa se rechaza mientras no exista un usuario que la tenga asignada. Es
-también lo que hace que la primera entrega valga sola: una empresa, un operador, emisor arreglado.
+Mi versión anterior de esta decisión estaba mal. Sostenía que un selector era «una sesión con dos
+verdades» y que por eso la segunda empresa tenía que esperar a que hubiera usuarios. Las dos cosas
+caen con la misma observación: si la empresa activa **es** un dato de la sesión firmada, no hay dos
+verdades, hay una —la misma que dice quién eres—, y «¿en qué empresa estoy?» sí tiene respuesta desde
+el primer arranque, porque la semilla de la decisión 3 ya crea un usuario real.
 
-_Alternativa descartada_: un selector de empresa en la interfaz. Guardar «en qué empresa estoy» fuera
-de la identidad es una sesión con dos verdades, y la que manda acaba siendo la que se olvidó de
-comprobar.
+_Alternativa descartada_: la empresa activa en una cookie aparte o en el estado del cliente. Eso sí
+serían dos verdades, y la que manda acabaría siendo la que alguien olvidó comprobar. Va dentro del
+token firmado o no va.
+
+_Alternativa descartada_: deducir la empresa del documento que se abre. Convierte cada consulta en
+una pregunta distinta y hace imposible listar.
+
+_Consecuencia_: el filtro por empresa se resuelve contra la sesión, no contra «la única empresa que
+hay». Escribirlo así desde el principio cuesta lo mismo y evita repasar cada consulta cuando aparezca
+la segunda.
+
+### 2b. El rol es de la persona, no de la pertenencia
+
+Un usuario tiene **un** rol, el mismo en todas las empresas a las que pertenece. Nadie es
+administrador en una y cajero en otra.
+
+_Alternativa descartada_: una entidad `Membership` con rol por empresa. Es el modelo completo para
+una plataforma multi-cliente; aquí sería una tabla, un alta y una consulta más para distinguir un
+caso que todavía no existe. Si aparece, `companyIds: string[]` pasa a ser una lista de pertenencias y
+el rol se mueve dentro: es aditivo, y solo cambia el código que resuelve el rol.
 
 ### 3. `AUTH_EMAIL` y `AUTH_PASSWORD` pasan de ser la identidad a ser la **semilla**
 
@@ -113,9 +134,12 @@ controlador. Repartir comprobaciones dentro de los métodos hace que la que falt
 - **Los borradores anteriores llevan `emisor.*` tecleado** → Al guardarlos se sobrescribe con el de la
   empresa. Los emitidos no se tocan: están congelados y congelado también significa a salvo de las
   migraciones.
-- **`companyId` en todas las consultas es código sin lector mientras haya una empresa** → Cierto, y es
-  el precio de que la segunda no obligue a revisar cada consulta a mano. Se paga una vez y se
-  comprueba con pruebas que siembran dos empresas aunque la aplicación solo permita una.
+- **`companyId` en todas las consultas es código sin lector mientras haya una empresa** → Deja de
+  serlo con el selector: el filtro se resuelve contra la sesión desde el primer día, y las pruebas
+  siembran dos empresas y comprueban que cambiar de una a otra cambia lo que se ve.
+- **Cambiar de empresa con un borrador a medio escribir** → Se avisa antes de cambiar. Lo no guardado
+  se pierde igual que al cerrar la pestaña; no se arrastra el borrador a la otra empresa, que sería
+  mover un documento entre contabilidades.
 - **Un rol mal asignado deja a alguien sin poder trabajar** → El administrador puede cambiarlo, y
   siempre hay al menos uno: quitarse a uno mismo el último rol de administrador se rechaza.
 

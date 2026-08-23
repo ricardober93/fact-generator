@@ -66,20 +66,20 @@ lo emitió forma parte de lo que dice.
 - **WHEN** cambia la razón social y después se guarda un borrador
 - **THEN** el borrador pasa a mostrar la nueva
 
-### Requirement: La segunda empresa exige que existan usuarios
+### Requirement: Quien crea una empresa pasa a pertenecer a ella
 
-Crear una segunda empresa DEBE (MUST) rechazarse mientras la aplicación no tenga usuarios con empresa
-asignada.
+Crear una empresa DEBE (MUST) añadirla a las empresas de quien la crea, y esa empresa DEBE quedar
+como su empresa activa.
 
-Con la identidad sembrada desde el entorno no hay forma de saber en qué empresa se está operando: no
-es una restricción elegida, es que la pregunta no tiene respuesta.
+Sin esto, un administrador podría crear una empresa a la que no puede entrar, y haría falta otro
+administrador —o la base de datos— para arreglarlo.
 
-#### Scenario: La segunda empresa se rechaza sin usuarios
+#### Scenario: La empresa nueva queda activa
 
-- **WHEN** existe una empresa, no hay usuarios, y se intenta crear otra empresa
-- **THEN** la creación se rechaza explicando que antes hacen falta usuarios
+- **WHEN** un administrador crea una segunda empresa
+- **THEN** pasa a pertenecer a las dos y opera en la nueva
 
-#### Scenario: Con usuarios sí se crea
+#### Scenario: La primera empresa la adopta el administrador sembrado
 
-- **WHEN** existe una empresa con usuarios asignados y se crea otra
-- **THEN** queda guardada
+- **WHEN** se arranca sin usuarios ni empresas y se crea la primera empresa
+- **THEN** el administrador sembrado pertenece a ella y la tiene activa
