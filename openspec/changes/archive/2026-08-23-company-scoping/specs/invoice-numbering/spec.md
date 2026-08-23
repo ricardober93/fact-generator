@@ -1,10 +1,4 @@
-# invoice-numbering Specification
-
-## Purpose
-
-TBD - created by archiving change invoice-issuance. Update Purpose after archive.
-
-## Requirements
+## MODIFIED Requirements
 
 ### Requirement: Un rango de numeración declara su prefijo, sus extremos y su vigencia
 
@@ -44,6 +38,40 @@ electrónica más adelante no obliga a cambiar el modelo.
 
 - **WHEN** se intenta crear un rango sin dueño
 - **THEN** la creación falla y no queda ningún rango guardado
+
+### Requirement: Dos rangos de la misma serie y prefijo no se solapan
+
+Al crear un rango, el sistema DEBE (MUST) rechazarlo si sus consecutivos se solapan con los de otro
+rango **del mismo dueño**, la misma serie y el mismo prefijo. Dos rangos disjuntos con el mismo
+prefijo SÍ son válidos, y dos dueños distintos PUEDEN usar el mismo tramo con la misma serie y el
+mismo prefijo: sus resoluciones son independientes.
+
+Es la única invariante del rango que no puede comprobarse al emitir: dos rangos solapados
+entregarían el mismo número dos veces sin que ninguna de las dos emisiones vea nada raro. Y es
+también lo que permite repartir el trabajo —una caja que numera sin red recibe simplemente su
+propio tramo disjunto—, sin ningún mecanismo adicional.
+
+#### Scenario: Un rango solapado se rechaza
+
+- **WHEN** existe un rango de 1000 a 1999 y se intenta crear otro del mismo tipo y prefijo de 1500
+  a 2500
+- **THEN** la creación falla y el rango existente no cambia
+
+#### Scenario: Dos tramos disjuntos conviven
+
+- **WHEN** existe un rango de 1000 a 1999 y se crea otro del mismo tipo y prefijo de 2000 a 2999
+- **THEN** los dos quedan guardados
+
+#### Scenario: El mismo tramo para otro tipo de documento sí vale
+
+- **WHEN** existe un rango de facturas de 1 a 999 y se crea uno de notas de crédito de 1 a 999
+- **THEN** los dos quedan guardados
+
+#### Scenario: El mismo tramo con otro dueño sí vale
+
+- **WHEN** un dueño tiene un rango de 1000 a 1999 con prefijo `FE` y otro dueño crea ese mismo tramo
+  con la misma serie y el mismo prefijo
+- **THEN** los dos quedan guardados
 
 ### Requirement: Emitir consume el siguiente consecutivo de forma atómica
 
@@ -119,58 +147,3 @@ garantizaría ni unicidad ni pertenencia a la resolución, y entonces el rango s
 
 - **WHEN** se emite indicando un número que sólo cae dentro de un rango vigente de otro dueño
 - **THEN** la emisión se rechaza igual que si el número no cayera en ningún rango
-
-### Requirement: Un rango agotado o fuera de vigencia no entrega números
-
-Un rango cuyo puntero ha pasado su último consecutivo, o cuya vigencia no cubre el instante de la
-emisión, NO DEBE (MUST NOT) entregar ningún número. Si no queda ningún otro rango utilizable, la
-emisión DEBE rechazarse diciendo cuál de las dos cosas ocurre.
-
-#### Scenario: Rango agotado
-
-- **WHEN** se emite contra un rango cuyo puntero ya pasó su último consecutivo
-- **THEN** la emisión se rechaza diciendo que el rango está agotado
-
-#### Scenario: Rango caducado
-
-- **WHEN** se emite contra un rango cuya vigencia terminó ayer
-- **THEN** la emisión se rechaza diciendo que el rango está fuera de vigencia
-
-#### Scenario: Se pasa al siguiente rango utilizable
-
-- **WHEN** hay un rango agotado y otro vigente con números disponibles para el mismo tipo
-- **THEN** la emisión toma el consecutivo del vigente
-
-### Requirement: Dos rangos de la misma serie y prefijo no se solapan
-
-Al crear un rango, el sistema DEBE (MUST) rechazarlo si sus consecutivos se solapan con los de otro
-rango **del mismo dueño**, la misma serie y el mismo prefijo. Dos rangos disjuntos con el mismo
-prefijo SÍ son válidos, y dos dueños distintos PUEDEN usar el mismo tramo con la misma serie y el
-mismo prefijo: sus resoluciones son independientes.
-
-Es la única invariante del rango que no puede comprobarse al emitir: dos rangos solapados
-entregarían el mismo número dos veces sin que ninguna de las dos emisiones vea nada raro. Y es
-también lo que permite repartir el trabajo —una caja que numera sin red recibe simplemente su
-propio tramo disjunto—, sin ningún mecanismo adicional.
-
-#### Scenario: Un rango solapado se rechaza
-
-- **WHEN** existe un rango de 1000 a 1999 y se intenta crear otro del mismo tipo y prefijo de 1500
-  a 2500
-- **THEN** la creación falla y el rango existente no cambia
-
-#### Scenario: Dos tramos disjuntos conviven
-
-- **WHEN** existe un rango de 1000 a 1999 y se crea otro del mismo tipo y prefijo de 2000 a 2999
-- **THEN** los dos quedan guardados
-
-#### Scenario: El mismo tramo para otro tipo de documento sí vale
-
-- **WHEN** existe un rango de facturas de 1 a 999 y se crea uno de notas de crédito de 1 a 999
-- **THEN** los dos quedan guardados
-
-#### Scenario: El mismo tramo con otro dueño sí vale
-
-- **WHEN** un dueño tiene un rango de 1000 a 1999 con prefijo `FE` y otro dueño crea ese mismo tramo
-  con la misma serie y el mismo prefijo
-- **THEN** los dos quedan guardados

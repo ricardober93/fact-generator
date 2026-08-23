@@ -17,8 +17,8 @@ los datos de la factura, la lista de sus líneas y los parámetros del embed. NO
 guardar el HTML renderizado, ningún PDF, ninguna imagen del documento ni una copia del diseño.
 
 Junto a esos datos, una factura DEBE guardar como **campos propios** —no como rutas dentro del
-registro libre— su tipo de documento, su estado, y, una vez emitida, su prefijo, su número y su
-instante de emisión. Son los cinco datos que decide el sistema y no la plantilla: por eso no pueden
+registro libre— su tipo de documento, su estado, su empresa, y, una vez emitida, su prefijo, su
+número, su instante de emisión, el emisor con el que salió y quién la emitió. Son los cinco datos que decide el sistema y no la plantilla: por eso no pueden
 vivir en un blob que cualquiera edita, y por eso se pueden consultar sin traerse todas las facturas
 a memoria.
 
@@ -43,8 +43,8 @@ presentes, con el mismo criterio que usa el render.
 #### Scenario: Lo que se guarda al emitir
 
 - **WHEN** se emite una factura
-- **THEN** quedan almacenados además su prefijo, su número y su instante de emisión como campos
-  propios
+- **THEN** quedan almacenados además su prefijo, su número, su instante de emisión, el emisor
+  congelado y quién la emitió, como campos propios
 
 #### Scenario: No se guarda el historial
 
@@ -80,10 +80,14 @@ El camino de número de factura es la excepción: NO DEBE (MUST NOT) ofrecerse c
 porque el número lo asigna la emisión. La plantilla lo sigue declarando y lo sigue pintando; lo que
 desaparece es la casilla donde alguien lo tecleaba.
 
-Al revés que el número, el **motivo** de una nota de crédito DEBE aparecer como campo aunque ninguna
-plantilla lo declare. Son las dos únicas excepciones y las dos por la misma razón: hay datos que
-pertenecen al documento y no a su diseño. El número lo decide el sistema y por eso no se teclea; el
-motivo lo decide quien corrige y por eso se teclea aunque el papel no lo pinte.
+Los caminos de **emisor** son la misma excepción que el número, y por el mismo motivo: los decide el
+sistema a partir de la empresa, así que la plantilla los sigue declarando y pintando y lo que
+desaparece es la casilla.
+
+Al revés que los dos anteriores, el **motivo** de una nota de crédito DEBE aparecer como campo aunque
+ninguna plantilla lo declare. Son las tres únicas excepciones, y se explican con una sola regla: un
+dato que decide el sistema no se teclea aunque esté en el schema, y un dato que decide la persona se
+teclea aunque no esté.
 
 El formulario NO DEBE escribirse a mano por diseño: una plantilla que declara un camino
 nuevo obtiene su campo sin tocar el formulario.
@@ -92,6 +96,11 @@ nuevo obtiene su campo sin tocar el formulario.
 
 - **WHEN** se abre el formulario de una factura sobre una plantilla que declara `cliente.nombre`
 - **THEN** aparece un campo para `cliente.nombre`
+
+#### Scenario: El emisor no es un campo del formulario
+
+- **WHEN** se abre el formulario sobre una plantilla que declara `emisor.nombre`
+- **THEN** no aparece ninguna casilla para escribirlo, y el documento lo pinta igualmente
 
 #### Scenario: El número no es un campo del formulario
 
@@ -127,6 +136,10 @@ tener ninguna línea.
 
 Quitar una línea NO DEBE (MUST NOT) alterar los valores de las demás.
 
+Una línea PUEDE guardar además una referencia opaca al origen del que se eligió. Esa referencia se
+guarda **junto a** sus valores y nunca en lugar de ellos: lo que se pinta y lo que se congela siguen
+siendo el texto y el precio de la línea.
+
 #### Scenario: Añadir una línea
 
 - **WHEN** se añade una línea
@@ -136,6 +149,11 @@ Quitar una línea NO DEBE (MUST NOT) alterar los valores de las demás.
 
 - **WHEN** se quita la segunda de tres líneas
 - **THEN** quedan la primera y la tercera con sus valores intactos
+
+#### Scenario: Una línea con referencia se guarda como cualquier otra
+
+- **WHEN** se guarda una factura con una línea que trae referencia de origen
+- **THEN** quedan almacenados sus valores y su referencia, y al pintarla se usan sus valores
 
 ### Requirement: Los totales se calculan como comodidad, pero se guardan como datos
 

@@ -10,34 +10,6 @@ documento.
 
 ## Requirements
 
-### Requirement: Hay un único operador y sus credenciales vienen del entorno
-
-La aplicación DEBE (MUST) reconocer exactamente una identidad, definida por las variables de
-entorno `AUTH_EMAIL` y `AUTH_PASSWORD`. NO DEBE (MUST NOT) existir registro público, ni entidad de
-usuario en la base de datos, ni pantalla de alta.
-
-Si falta cualquiera de las dos variables, o `JWT_SECRET`, la aplicación NO DEBE arrancar. Una
-aplicación protegida que arranca sin secreto es una aplicación sin protección, y fallar al arrancar
-es la única forma de que el descuido se note.
-
-La contraseña NO DEBE conservarse en claro más allá del arranque: se convierte a hash con la
-utilidad de contraseñas del framework y la comparación se hace siempre contra el hash.
-
-#### Scenario: Arranque sin credenciales configuradas
-
-- **WHEN** se intenta arrancar sin `AUTH_EMAIL`, sin `AUTH_PASSWORD` o sin `JWT_SECRET`
-- **THEN** el arranque falla con un mensaje que nombra la variable que falta
-
-#### Scenario: Las credenciales del entorno abren la sesión
-
-- **WHEN** se envían el correo y la contraseña que declaran las variables de entorno
-- **THEN** la sesión queda abierta
-
-#### Scenario: La contraseña no se guarda en claro
-
-- **WHEN** se inspecciona la configuración de credenciales ya construida
-- **THEN** expone un hash y no el texto de la contraseña
-
 ### Requirement: La sesión viaja en una cookie no accesible desde JavaScript
 
 Al autenticarse, el sistema DEBE (MUST) escribir la sesión en la cookie que lee el guardia del
@@ -212,3 +184,22 @@ Tras cerrarla, volver a una ruta protegida DEBE comportarse igual que no haber e
 
 - **WHEN** se pide una ruta protegida tras cerrar sesión
 - **THEN** responde con la redirección al acceso
+
+### Requirement: El arranque sigue exigiendo su secreto
+
+Sin `JWT_SECRET` la aplicación NO DEBE (MUST) arrancar, y DEBE fallar con un mensaje que nombre la
+variable que falta.
+
+Una aplicación protegida que arranca sin secreto es una aplicación sin protección, y fallar al
+arrancar es la única forma de que el descuido se note. Se conserva de lo que se retira, porque no
+tenía nada que ver con quién es el operador.
+
+#### Scenario: Arranque sin secreto
+
+- **WHEN** se intenta arrancar sin `JWT_SECRET`
+- **THEN** el arranque falla nombrando la variable
+
+#### Scenario: Arranque sin semilla y sin usuarios
+
+- **WHEN** se arranca sin usuarios en la base y sin `AUTH_EMAIL` o `AUTH_PASSWORD`
+- **THEN** el arranque falla diciendo que no hay forma de crear el primer administrador

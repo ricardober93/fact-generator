@@ -14,11 +14,15 @@ congelado, sin tocar la identidad. Los grupos 5 a 8 son la segunda.
 
 ## 2. El rango tiene dueño
 
-- [x] 2.1 `NumberRange` gana `companyId`, y `createRange` lo exige
-- [x] 2.2 La regla de no solapamiento pasa a ser por empresa + tipo + prefijo
-- [x] 2.3 `findUsable` y `findCovering` filtran por empresa
-- [x] 2.4 Tests: sin empresa no se crea; el mismo tramo con el mismo prefijo en otra empresa sí vale;
-      emitir no ve los rangos de otra empresa
+- [x] 2.1 `NumberRange` gana `owner` —opaco para la numeración—, y `createRange` lo exige
+- [x] 2.2 La regla de no solapamiento pasa a ser por dueño + serie + prefijo
+- [x] 2.3 `findUsable` y `findCovering` filtran por dueño
+- [x] 2.4 Tests de aislamiento por dueño, uno por cada escenario nuevo del spec: un rango sin dueño no
+      se crea; el mismo tramo con la misma serie y el mismo prefijo con otro dueño sí se crea; emitir
+      para un dueño sin rangos se rechaza como si no hubiera ninguno y no mueve el puntero del rango
+      ajeno; y un número dado que sólo cae en el rango de otro dueño se rechaza igual que un número
+      fuera de todo rango. Los cuatro se comprobaron a la inversa: quitando el filtro por dueño de
+      `findBySeries` caen los tres últimos, y quitando el guard de `assertInput` cae el primero
 - [x] 2.5 **Descartado con motivo.** Un rango sin dueño simplemente deja de encontrarse. Adoptarlo
       automáticamente exigía o que la numeración supiera qué es una empresa —rompiendo la opacidad que
       acaba de costar un refactor— o una regla permisiva que con dos empresas filtraría consecutivos
