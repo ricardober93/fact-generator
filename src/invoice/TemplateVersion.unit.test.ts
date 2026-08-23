@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict'
+import { seedCompany } from '../company/__fixtures__/seededCompany'
 import test, { before } from 'node:test'
 import { container, InMemoryLocker, Locker } from '@wabot-dev/framework'
 import { useMemoryRepositories } from '@wabot-dev/framework/testing'
@@ -8,6 +9,8 @@ import { TemplateRepository } from './models/template/TemplateRepository'
 import { invoiceDocumentFixture } from './render/__fixtures__/invoiceDocument'
 
 useMemoryRepositories()
+
+let companyId = ''
 container.register(Locker, { useToken: InMemoryLocker })
 
 const RED_DOT_PNG =
@@ -27,7 +30,8 @@ function assets(): AssetRepository {
 }
 
 before(async () => {
-  const template = await templates().createTemplate('Base', invoiceDocumentFixture())
+  companyId = await seedCompany()
+  const template = await templates().createTemplate('Base', invoiceDocumentFixture(), companyId)
   templateId = template.id
 })
 

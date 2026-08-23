@@ -16,6 +16,8 @@ import {
   view,
   type VNode,
 } from '@wabot-dev/framework/ui'
+import { Auth } from '@wabot-dev/framework'
+import type { ISession } from '../auth/session'
 import { RequireSession } from '../auth/RequireSession'
 import { SignOutButton } from '../auth/ui/SignOutButton'
 import { assetsFor } from './embedAssets'
@@ -155,13 +157,16 @@ function TemplateList({ templates }: { templates: Template[] }): VNode {
 @uiController({ path: '/templates', app: true, layout: AppLayout, middlewares: [RequireSession] })
 export class TemplateController {
   constructor(
+    private readonly auth: Auth<ISession>,
     private readonly templates: TemplateRepository,
     private readonly assets: AssetRepository,
   ) {}
 
   @view({ title: 'Plantillas' })
   async index(): Promise<VNode> {
-    return <TemplateList templates={await this.templates.findAll()} />
+    return (
+      <TemplateList templates={await this.templates.findAllFor(this.auth.require().companyId)} />
+    )
   }
 
   @view({
@@ -187,7 +192,11 @@ export class TemplateController {
   @action()
   async create(input: CreateTemplateDto) {
     const doc = documentForPreset(input.preset)
-    const template = await this.templates.createTemplate(input.name, doc)
+    const template = await this.templates.createTemplate(
+      input.name,
+      doc,
+      this.auth.require().companyId,
+    )
     return redirect(`/templates/${template.id}`)
   }
 

@@ -96,11 +96,25 @@ reproducible, que es justo lo que `invoice-issuance` fue a garantizar.
 identificador obliga a ir a buscar un usuario que puede haberse dado de baja; guardar el nombre lo
 deja legible para siempre. Es la misma razón por la que `corrects` guarda el número además del id.
 
-### 6. El alcance de la empresa se comprueba en el repositorio
+### 6. El alcance de la empresa es un **parámetro obligatorio**, no una inyección
 
-Igual que la congelación: el filtro por `companyId` vive donde pasan todos los llamadores, no en cada
-controlador. Un repositorio que puede devolver documentos de otra empresa si alguien olvida una
-condición es un repositorio que lo hará.
+Las consultas que devuelven datos de una empresa reciben su identificador como argumento
+obligatorio: `findAllFor(companyId)`, `findFor(companyId, id)`. Quien llama lo saca de la
+sesión.
+
+La versión anterior de esta decisión decía «el filtro vive en el repositorio, no en cada
+controlador», con la idea de inyectar la sesión ahí. **No se puede**: `@repository` aplica
+`singleton()` —comprobado en `@repository.js:166`—, así que un repositorio que inyectara el
+`Auth` de la petición se quedaría con la empresa del primer visitante para siempre. Sería el
+peor fallo posible de todos los que este cambio intenta evitar.
+
+El parámetro obligatorio conserva lo que aquella decisión buscaba y lo hace más fuerte: no se
+puede olvidar, porque **no compila**. Un guardia en tiempo de ejecución avisa cuando ya ha
+pasado; el compilador no deja escribirlo.
+
+_Alternativa descartada_: un servicio con ámbito de petición que envuelva cada repositorio.
+Es una capa entera —tres clases nuevas— para recuperar una inyección que el parámetro ya da,
+y ARCHITECTURE §5 sigue prohibiendo el servicio que solo reenvía.
 
 ### 7. Tres roles, y lo que gatean
 

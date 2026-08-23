@@ -27,6 +27,8 @@ import {
   type UiRedirect,
   type VNode,
 } from '@wabot-dev/framework/ui'
+import { Auth } from '@wabot-dev/framework'
+import type { ISession } from '../auth/session'
 import { RequireSession } from '../auth/RequireSession'
 import { assetsFor } from './embedAssets'
 import { AssetRepository } from './models/asset/AssetRepository'
@@ -78,19 +80,24 @@ export class InvoiceController {
   constructor(
     private readonly invoices: InvoiceRepository,
     private readonly issuance: Issuance,
+    private readonly auth: Auth<ISession>,
     private readonly templates: TemplateRepository,
     private readonly assets: AssetRepository,
   ) {}
 
+  private get companyId(): string {
+    return this.auth.require().companyId
+  }
+
   @view({ title: 'Facturas' })
   async index(): Promise<VNode> {
-    const stored = await this.invoices.findAll()
+    const stored = await this.invoices.findAllFor(this.companyId)
     return <InvoiceList invoices={stored} />
   }
 
   @view({ path: 'new', title: 'Nueva factura' })
   async create(input: NewInvoiceDto): Promise<VNode> {
-    const templates = await this.templates.findAll()
+    const templates = await this.templates.findAllFor(this.companyId)
     if (templates.length === 0) throw noTemplates()
     const chosen = templates.find((template) => template.id === input.templateId) ?? templates[0]
     return this.editor(null, chosen, {}, [], {}, templates, NO_MISMATCH)
@@ -98,9 +105,9 @@ export class InvoiceController {
 
   @view({ path: ':id', title: 'Factura', swr: { version: versionOfInvoice } })
   async edit(input: InvoiceIdDto): Promise<VNode> {
-    const invoice = await this.invoices.find(input.id)
+    const invoice = await this.invoices.findFor(this.companyId, input.id)
     if (!invoice) throw notFound()
-    const templates = await this.templates.findAll()
+    const templates = await this.templates.findAllFor(this.companyId)
     const template = templates.find((candidate) => candidate.id === invoice.templateId)
     if (!template) throw notFound()
     return this.editor(
@@ -129,6 +136,7 @@ export class InvoiceController {
       data: input.data,
       items: input.items,
       params: input.params ?? {},
+      companyId: this.companyId,
       correctionReason: input.correctionReason,
     }
     if (!input.id) {
@@ -166,7 +174,7 @@ export class InvoiceController {
   @action()
   @uiMiddleware(RequireWriter)
   async remove(input: InvoiceIdDto) {
-    const invoice = await this.invoices.find(input.id)
+    const invoice = await this.invoices.findFor(this.companyId, input.id)
     if (!invoice) throw notFound()
     await this.invoices.deleteDraft(invoice)
     return redirect('/invoices')

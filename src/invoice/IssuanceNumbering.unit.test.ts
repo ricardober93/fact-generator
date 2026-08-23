@@ -44,7 +44,9 @@ let companyId = ''
 test.before(async () => {
   companyId = await seedCompany()
   const doc = findTemplatePreset('chevron-slate')!.build()
-  const template = await container.resolve(TemplateRepository).createTemplate('Diseño', doc)
+  const template = await container
+    .resolve(TemplateRepository)
+    .createTemplate('Diseño', doc, companyId)
   templateId = template.id
 })
 
@@ -61,7 +63,7 @@ async function seedRange(prefix: string, from: number, to: number, validTo = VAL
 }
 
 async function draft(data: IInvoiceRecord = DATA, items: IInvoiceRecord[] = ITEMS) {
-  return invoices().createInvoice({ templateId, data, items })
+  return invoices().createInvoice({ templateId, companyId, data, items })
 }
 
 function issuedBy(result: IIssueInvoiceResult): Invoice {
@@ -166,6 +168,7 @@ test('without any range for its document type there is nothing to issue against'
     note.id,
     {
       templateId,
+      companyId,
       data: note.invoiceData,
       items: note.invoiceItems,
       correctionReason: 'Anulación total',

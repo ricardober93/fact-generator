@@ -2,6 +2,7 @@ import { CrudRepository, CustomError, Locker, query, repository } from '@wabot-d
 import { isDocType, type IDocType } from '../docType'
 import { CompanyRepository } from '../../../company/app'
 import { writePath } from '../../../kernel/paths'
+import type { IDocument } from '../../render/document'
 import { ISSUER_ROOT } from '../../render/invoiceFields'
 import { assertDataSatisfiesTemplate, isSystemWritten } from '../requiredData'
 import { TemplateRepository } from '../template/TemplateRepository'
@@ -17,6 +18,7 @@ export interface IInvoiceInput {
   data: IInvoiceRecord
   items: IInvoiceRecord[]
   params?: Record<string, string>
+  companyId: string
   docType?: IDocType
   corrects?: ICorrectedDocument
   correctionReason?: string
@@ -74,6 +76,19 @@ export class InvoiceRepository extends CrudRepository<Invoice> {
 
   declare findAll: () => Promise<Invoice[]>
 
+  @query() declare findByCompanyId: (companyId: string) => Promise<Invoice[]>
+
+  async findAllFor(companyId: string): Promise<Invoice[]> {
+    if (typeof companyId !== 'string' || companyId.length === 0) return []
+    return this.findByCompanyId(companyId)
+  }
+
+  async findFor(companyId: string, id: string): Promise<Invoice | null> {
+    const found = await this.find(id)
+    if (!found || found.companyId !== companyId) return null
+    return found
+  }
+
   @query() declare findByDocTypeAndPrefixAndNumber: (
     docType: IDocType,
     prefix: string,
@@ -83,13 +98,12 @@ export class InvoiceRepository extends CrudRepository<Invoice> {
   async createInvoice(input: IInvoiceInput): Promise<Invoice> {
     const checked = await this.checked(input)
     const docType = isDocType(input.docType) ? input.docType : 'factura'
-    const company = await this.companies.current()
     const invoice = new Invoice({
       ...checked,
       rev: 1,
       docType,
       corrects: input.corrects,
-      companyId: company ? company.id : undefined,
+      companyId: input.companyId,
     })
     await this.create(invoice)
     return invoice
@@ -124,12 +138,19 @@ export class InvoiceRepository extends CrudRepository<Invoice> {
     await this.delete(invoice)
   }
 
-  private async withIssuer(data: IInvoiceRecord): Promise<IInvoiceRecord> {
-    const company = await this.companies.current()
+  private async withIssuer(
+    doc: IDocument,
+    companyId: string,
+    data: IInvoiceRecord,
+  ): Promise<IInvoiceRecord> {
+    const company = companyId ? await this.companies.find(companyId) : null
     if (!company) return data
+    const declared = new Set(doc.dataSchema.map((entry) => entry.path))
     let next = data
     for (const [key, value] of Object.entries(company.issuerFields)) {
-      next = writePath<IInvoiceValue>(next, `${ISSUER_ROOT}.${key}`, value)
+      const path = `${ISSUER_ROOT}.${key}`
+      if (!declared.has(path)) continue
+      next = writePath<IInvoiceValue>(next, path, value)
     }
     return next
   }
@@ -149,7 +170,7 @@ export class InvoiceRepository extends CrudRepository<Invoice> {
     }
     const template = await this.templates.find(input.templateId)
     if (!template) throw unknownTemplate(input.templateId)
-    const data = await this.withIssuer(input.data ?? {})
+    const data = await this.withIssuer(template.doc, input.companyId, input.data ?? {})
     assertDataSatisfiesTemplate(template.doc, data, input.items, isSystemWritten)
     return {
       templateId: input.templateId,

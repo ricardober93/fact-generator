@@ -64,6 +64,7 @@ export class Issuance {
       items: target.invoiceItems,
       params: target.params,
       docType: 'notaCredito',
+      companyId: target.companyId,
       corrects: { id: target.id, prefix: target.prefix, number: target.number },
     })
   }
@@ -72,7 +73,7 @@ export class Issuance {
     invoice: Invoice,
     input: IIssueInvoiceInput & { at: number },
   ): Promise<IIssueInvoiceResult> {
-    const company = await this.companies.current()
+    const company = invoice.companyId ? await this.companies.find(invoice.companyId) : null
     if (!company) return rejected('NO_COMPANY')
     const assigned = await this.ranges.assign({
       owner: company.id,

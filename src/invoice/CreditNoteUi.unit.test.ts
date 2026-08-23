@@ -39,7 +39,9 @@ before(async () => {
   companyId = await seedCompany()
   harness = await createSignedInHarness([InvoiceController])
   const doc = findTemplatePreset('chevron-slate')!.build()
-  templateId = (await container.resolve(TemplateRepository).createTemplate('Diseño', doc)).id
+  templateId = (
+    await container.resolve(TemplateRepository).createTemplate('Diseño', doc, companyId)
+  ).id
   const ranges = container.resolve(NumberRangeRepository)
   for (const series of ['factura', 'notaCredito'] as const) {
     await ranges.createRange({
@@ -57,7 +59,7 @@ before(async () => {
 after(async () => await harness.close())
 
 async function draft(): Promise<Invoice> {
-  return invoices().createInvoice({ templateId, data: DATA, items: ITEMS })
+  return invoices().createInvoice({ templateId, companyId, data: DATA, items: ITEMS })
 }
 
 async function issued(): Promise<Invoice> {
@@ -168,6 +170,7 @@ test('the list marks an invoice that an issued credit note corrects', async () =
     note.id,
     {
       templateId,
+      companyId,
       data: note.invoiceData,
       items: note.invoiceItems,
       correctionReason: 'Anulación total',

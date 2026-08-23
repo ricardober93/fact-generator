@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict'
+import { seedCompany } from '../company/__fixtures__/seededCompany'
 import test, { after, before } from 'node:test'
 import { container, InMemoryLocker, Locker } from '@wabot-dev/framework'
 import { useMemoryRepositories } from '@wabot-dev/framework/testing'
@@ -13,11 +14,14 @@ import type { IHandoffRecord } from './models/handoff/Handoff'
 import { TEMPLATE_PRESETS } from './templates/presets'
 
 useMemoryRepositories()
+
+let companyId = ''
 container.register(Locker, { useToken: InMemoryLocker })
 
 let harness: ISignedInHarness
 
 before(async () => {
+  companyId = await seedCompany()
   harness = await createSignedInHarness([TemplateController, EmbedController])
 })
 
@@ -36,7 +40,7 @@ test('with no templates the index states it plainly', async () => {
 test('the index lists a template as a row once one exists', async () => {
   const template = await container
     .resolve(TemplateRepository)
-    .createTemplate('con-diseño', invoiceDocumentFixture())
+    .createTemplate('con-diseño', invoiceDocumentFixture(), companyId)
 
   const page = await harness.get('/templates')
 
@@ -71,7 +75,7 @@ test('the document surface is reset so application styles cannot reach the invoi
 test('the embed carries no application styles at all', async () => {
   const template = await container
     .resolve(TemplateRepository)
-    .createTemplate('sin-diseño', invoiceDocumentFixture())
+    .createTemplate('sin-diseño', invoiceDocumentFixture(), companyId)
   const handoff = await container
     .resolve(HandoffRepository)
     .createHandoff(

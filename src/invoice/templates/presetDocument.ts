@@ -9,6 +9,7 @@ import {
 
 export const INVOICE_DATA_SCHEMA: IDataPath[] = [
   { path: 'emisor.nombre', type: 'string', required: true },
+  { path: 'emisor.nit', type: 'string', required: false },
   { path: 'emisor.eslogan', type: 'string', required: false },
   { path: 'emisor.telefono', type: 'string', required: false },
   { path: 'emisor.direccion', type: 'string', required: false },

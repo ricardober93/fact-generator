@@ -41,10 +41,11 @@ function templates(): TemplateRepository {
 
 before(async () => {
   companyId = await seedCompany()
-  const template = await templates().createTemplate('Base', invoiceDocumentFixture())
+  const template = await templates().createTemplate('Base', invoiceDocumentFixture(), companyId)
   templateId = template.id
   const invoice = await invoices().createInvoice({
     templateId,
+    companyId,
     data: DATA,
     items: ITEMS,
   })
@@ -66,6 +67,7 @@ test('saving different data changes the key', async () => {
     invoiceId,
     {
       templateId,
+      companyId,
       data: { ...DATA, factura: { ...(DATA.factura as IInvoiceRecord), numero: 'A-999' } },
       items: ITEMS,
     },
@@ -89,7 +91,7 @@ test('editing the document of its template changes the key', async () => {
 test('creating another template changes the key, because it joins the picker', async () => {
   const before = await versionOfInvoice({ id: invoiceId })
 
-  await templates().createTemplate('Otra', invoiceDocumentFixture())
+  await templates().createTemplate('Otra', invoiceDocumentFixture(), companyId)
 
   assert.notEqual(await versionOfInvoice({ id: invoiceId }), before)
 })
@@ -112,7 +114,12 @@ test('issuing changes the key, so no stale page survives it', async () => {
     validFrom: Date.UTC(2026, 0, 1),
     validTo: Date.UTC(2026, 11, 31),
   })
-  const draft = await invoices().createInvoice({ templateId, data: ADDS_UP, items: ITEMS })
+  const draft = await invoices().createInvoice({
+    templateId,
+    companyId,
+    data: ADDS_UP,
+    items: ITEMS,
+  })
   const before = await versionOfInvoice({ id: draft.id })
 
   const result = await issuance().issueInvoice(draft.id, {
@@ -125,8 +132,18 @@ test('issuing changes the key, so no stale page survives it', async () => {
 })
 
 test('two documents with the same data and different state do not share a key', async () => {
-  const first = await invoices().createInvoice({ templateId, data: ADDS_UP, items: ITEMS })
-  const second = await invoices().createInvoice({ templateId, data: ADDS_UP, items: ITEMS })
+  const first = await invoices().createInvoice({
+    templateId,
+    companyId,
+    data: ADDS_UP,
+    items: ITEMS,
+  })
+  const second = await invoices().createInvoice({
+    templateId,
+    companyId,
+    data: ADDS_UP,
+    items: ITEMS,
+  })
   assert.equal(await versionOfInvoice({ id: first.id }), await versionOfInvoice({ id: second.id }))
 
   await issuance().issueInvoice(second.id, { prefix: 'VK', at: Date.UTC(2026, 7, 22) })

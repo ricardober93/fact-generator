@@ -1,10 +1,13 @@
 import assert from 'node:assert/strict'
+import { seedCompany } from '../../company/__fixtures__/seededCompany'
 import test from 'node:test'
 import { container } from '@wabot-dev/framework'
 import { useMemoryRepositories } from '@wabot-dev/framework/testing'
 import { UserRepository } from './UserRepository'
 
 useMemoryRepositories()
+
+let companyId = ''
 
 function users(): UserRepository {
   return container.resolve(UserRepository)

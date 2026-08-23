@@ -47,7 +47,9 @@ let companyId = ''
 test.before(async () => {
   companyId = await seedCompany()
   const doc = findTemplatePreset('chevron-slate')!.build()
-  const template = await container.resolve(TemplateRepository).createTemplate('Diseño', doc)
+  const template = await container
+    .resolve(TemplateRepository)
+    .createTemplate('Diseño', doc, companyId)
   templateId = template.id
   await ranges().createRange({
     owner: companyId,
@@ -71,7 +73,7 @@ function refusalOf(result: IIssueInvoiceResult): string {
 }
 
 async function issuedInvoice(): Promise<Invoice> {
-  const draft = await invoices().createInvoice({ templateId, data: DATA, items: ITEMS })
+  const draft = await invoices().createInvoice({ templateId, companyId, data: DATA, items: ITEMS })
   return issuedBy(await issuance().issueInvoice(draft.id, { prefix: 'FE', at: AT }))
 }
 
@@ -80,6 +82,7 @@ async function withReason(note: Invoice, reason: string): Promise<Invoice> {
     note.id,
     {
       templateId: note.templateId,
+      companyId: note.companyId,
       data: note.invoiceData,
       items: note.invoiceItems,
       correctionReason: reason,
@@ -101,7 +104,7 @@ test('a credit note starts from the invoice it corrects', async () => {
 })
 
 test('a draft cannot be corrected, only an issued document', async () => {
-  const draft = await invoices().createInvoice({ templateId, data: DATA, items: ITEMS })
+  const draft = await invoices().createInvoice({ templateId, companyId, data: DATA, items: ITEMS })
 
   await assert.rejects(() => issuance().createCreditNoteFor(draft.id))
 })
@@ -172,6 +175,7 @@ test('a partial correction keeps the reference after trimming lines', async () =
     note.id,
     {
       templateId,
+      companyId,
       data: { ...DATA, factura: { numero: 'X', total: 40, fecha: '2026-08-01' } },
       items: [ITEMS[0] as IInvoiceRecord],
       correctionReason: 'Devolución parcial',
@@ -185,7 +189,7 @@ test('a partial correction keeps the reference after trimming lines', async () =
 
 test('an issued document is never deleted, a draft is', async () => {
   const invoice = await issuedInvoice()
-  const draft = await invoices().createInvoice({ templateId, data: DATA, items: ITEMS })
+  const draft = await invoices().createInvoice({ templateId, companyId, data: DATA, items: ITEMS })
 
   await assert.rejects(() => invoices().deleteDraft(invoice))
   await invoices().deleteDraft(draft)

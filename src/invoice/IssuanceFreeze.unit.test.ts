@@ -44,7 +44,9 @@ let companyId = ''
 test.before(async () => {
   companyId = await seedCompany()
   const doc = findTemplatePreset('chevron-slate')!.build()
-  const template = await container.resolve(TemplateRepository).createTemplate('Diseño', doc)
+  const template = await container
+    .resolve(TemplateRepository)
+    .createTemplate('Diseño', doc, companyId)
   templateId = template.id
 })
 
@@ -61,7 +63,7 @@ async function seedRange(prefix: string, from: number, to: number, validTo = VAL
 }
 
 async function draft(data: IInvoiceRecord = DATA, items: IInvoiceRecord[] = ITEMS) {
-  return invoices().createInvoice({ templateId, data, items })
+  return invoices().createInvoice({ templateId, companyId, data, items })
 }
 
 function issuedBy(result: IIssueInvoiceResult): Invoice {
@@ -87,7 +89,7 @@ test('saving over an issued document writes absolutely nothing', async () => {
   await assert.rejects(() =>
     invoices().saveInvoice(
       invoice.id,
-      { templateId, data: { ...DATA, cliente: { nombre: 'Otro' } }, items: [] },
+      { templateId, companyId, data: { ...DATA, cliente: { nombre: 'Otro' } }, items: [] },
       issued.rev,
     ),
   )
@@ -103,7 +105,7 @@ test('a draft still saves exactly as it did before issuance existed', async () =
 
   const result = await invoices().saveInvoice(
     invoice.id,
-    { templateId, data: { ...DATA, cliente: { nombre: 'Ana María' } }, items: ITEMS },
+    { templateId, companyId, data: { ...DATA, cliente: { nombre: 'Ana María' } }, items: ITEMS },
     invoice.rev,
   )
 

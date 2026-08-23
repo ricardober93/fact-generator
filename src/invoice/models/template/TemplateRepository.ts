@@ -29,12 +29,25 @@ export class TemplateRepository extends CrudRepository<Template> {
 
   declare findAll: () => Promise<Template[]>
 
-  async createTemplate(name: string, doc: IDocument): Promise<Template> {
+  @query() declare findByCompanyId: (companyId: string) => Promise<Template[]>
+
+  async findAllFor(companyId: string): Promise<Template[]> {
+    if (typeof companyId !== 'string' || companyId.length === 0) return []
+    return this.findByCompanyId(companyId)
+  }
+
+  async findFor(companyId: string, id: string): Promise<Template | null> {
+    const found = await this.find(id)
+    if (!found || found.companyId !== companyId) return null
+    return found
+  }
+
+  async createTemplate(name: string, doc: IDocument, companyId = ''): Promise<Template> {
     if (!name) {
       throw new CustomError({ message: 'Template name is required', httpCode: 400 })
     }
     assertValidDocument(doc)
-    const template = new Template({ name, doc, rev: 1 })
+    const template = new Template({ name, doc, rev: 1, companyId })
     await this.create(template)
     return template
   }

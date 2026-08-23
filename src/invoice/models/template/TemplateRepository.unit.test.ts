@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict'
+import { seedCompany } from '../../../company/__fixtures__/seededCompany'
 import test from 'node:test'
 import { container, InMemoryLocker, Locker } from '@wabot-dev/framework'
 import { useMemoryRepositories } from '@wabot-dev/framework/testing'
@@ -8,6 +9,8 @@ import type { Template } from './Template'
 import { TemplateRepository } from './TemplateRepository'
 
 useMemoryRepositories()
+
+let companyId = ''
 container.register(Locker, { useToken: InMemoryLocker })
 
 function repo(): TemplateRepository {
@@ -21,7 +24,7 @@ function allTemplates(): Promise<Template[]> {
 test('a template round trips without losing its document', async () => {
   const doc = invoiceDocumentFixture()
 
-  const created = await repo().createTemplate('Factura A', doc)
+  const created = await repo().createTemplate('Factura A', doc, companyId)
   const found = await repo().find(created.id)
 
   assert.ok(found)
@@ -34,12 +37,12 @@ test('an invalid document is never persisted', async () => {
   const doc = emptyDocument() as any
   delete doc.bands.summary
 
-  await assert.rejects(() => repo().createTemplate('Rota', doc), /Invalid document/)
+  await assert.rejects(() => repo().createTemplate('Rota', doc, companyId), /Invalid document/)
   assert.equal(await repo().findOneByName('Rota'), null)
 })
 
 test('a write on the current revision bumps rev by one', async () => {
-  const created = await repo().createTemplate('Incremental', emptyDocument())
+  const created = await repo().createTemplate('Incremental', emptyDocument(), companyId)
 
   const result = await repo().saveDocument(created.id, invoiceDocumentFixture(), created.rev)
 
@@ -49,7 +52,7 @@ test('a write on the current revision bumps rev by one', async () => {
 })
 
 test('two editors on the same revision: the second one is rejected', async () => {
-  const created = await repo().createTemplate('Concurrente', emptyDocument())
+  const created = await repo().createTemplate('Concurrente', emptyDocument(), companyId)
   const staleRev = created.rev
 
   const firstDoc = invoiceDocumentFixture()
@@ -69,7 +72,7 @@ test('two editors on the same revision: the second one is rejected', async () =>
 })
 
 test('a conflict hands back the stored revision and document', async () => {
-  const created = await repo().createTemplate('Conflicto', emptyDocument())
+  const created = await repo().createTemplate('Conflicto', emptyDocument(), companyId)
   await repo().saveDocument(created.id, invoiceDocumentFixture(), created.rev)
 
   const result = await repo().saveDocument(created.id, emptyDocument(), 1)
@@ -80,7 +83,7 @@ test('a conflict hands back the stored revision and document', async () => {
 })
 
 test('the revision cannot be forced by the caller', async () => {
-  const created = await repo().createTemplate('Forzada', emptyDocument())
+  const created = await repo().createTemplate('Forzada', emptyDocument(), companyId)
 
   assert.equal(created.rev, 1)
 
@@ -91,7 +94,7 @@ test('the revision cannot be forced by the caller', async () => {
 })
 
 test('an invalid document is rejected before the revision check', async () => {
-  const created = await repo().createTemplate('Validada', emptyDocument())
+  const created = await repo().createTemplate('Validada', emptyDocument(), companyId)
   const broken = emptyDocument() as any
   broken.page.widthMm = 0
 
@@ -103,7 +106,7 @@ test('an invalid document is rejected before the revision check', async () => {
 })
 
 test('listing templates never returns image bytes', async () => {
-  await repo().createTemplate('Con logo', invoiceDocumentFixture())
+  await repo().createTemplate('Con logo', invoiceDocumentFixture(), companyId)
 
   const all = await allTemplates()
   const serialized = JSON.stringify(all.map((template) => template.doc))

@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict'
+import { seedCompany } from '../company/__fixtures__/seededCompany'
 import test, { after, before } from 'node:test'
 import { container, InMemoryLocker, Locker } from '@wabot-dev/framework'
 import { UiControllerMetadataStore } from '@wabot-dev/framework/ui'
@@ -12,11 +13,14 @@ import { addBlock, setBlockProp } from './ui/documentEdits'
 import { TEMPLATE_PRESETS } from './templates/presets'
 
 useMemoryRepositories()
+
+let companyId = ''
 container.register(Locker, { useToken: InMemoryLocker })
 
 let harness: ISignedInHarness
 
 before(async () => {
+  companyId = await seedCompany()
   harness = await createSignedInHarness([TemplateController])
 })
 
@@ -29,7 +33,7 @@ function templates(): TemplateRepository {
 }
 
 async function newTemplate(name: string, doc: IDocument = invoiceDocumentFixture()) {
-  return templates().createTemplate(name, doc)
+  return templates().createTemplate(name, doc, companyId)
 }
 
 test('creating a template lands on the editor of the template just created', async () => {

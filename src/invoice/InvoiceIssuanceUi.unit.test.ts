@@ -40,7 +40,9 @@ before(async () => {
   companyId = await seedCompany()
   harness = await createSignedInHarness([InvoiceController, NumberRangeController])
   const doc = findTemplatePreset('chevron-slate')!.build()
-  templateId = (await container.resolve(TemplateRepository).createTemplate('Diseño', doc)).id
+  templateId = (
+    await container.resolve(TemplateRepository).createTemplate('Diseño', doc, companyId)
+  ).id
   await container.resolve(NumberRangeRepository).createRange({
     owner: companyId,
     series: 'factura',
@@ -55,7 +57,7 @@ before(async () => {
 after(async () => await harness.close())
 
 async function draft() {
-  return invoices().createInvoice({ templateId, data: DATA, items: ITEMS })
+  return invoices().createInvoice({ templateId, companyId, data: DATA, items: ITEMS })
 }
 
 test('a draft offers issuing, and saving', async () => {
@@ -82,6 +84,7 @@ test('the issue action reports the number it landed on', async () => {
 test('the issue action reports a refusal as a value, not as a failure', async () => {
   const invoice = await invoices().createInvoice({
     templateId,
+    companyId,
     data: { ...DATA, factura: { numero: 'X', base: 100, impuestos: 19, total: 999 } },
     items: ITEMS,
   })

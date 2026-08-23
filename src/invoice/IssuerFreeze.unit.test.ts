@@ -39,7 +39,9 @@ function issuerOf(data: IInvoiceRecord): IInvoiceRecord {
 before(async () => {
   companyId = await seedCompany()
   const doc = findTemplatePreset('chevron-slate')!.build()
-  templateId = (await container.resolve(TemplateRepository).createTemplate('Diseño', doc)).id
+  templateId = (
+    await container.resolve(TemplateRepository).createTemplate('Diseño', doc, companyId)
+  ).id
   await container.resolve(NumberRangeRepository).createRange({
     owner: companyId,
     series: 'factura',
@@ -52,7 +54,7 @@ before(async () => {
 })
 
 test('a draft takes its issuer from the company, not from a keyboard', async () => {
-  const draft = await invoices().createInvoice({ templateId, data: DATA, items: ITEMS })
+  const draft = await invoices().createInvoice({ templateId, companyId, data: DATA, items: ITEMS })
 
   assert.equal(issuerOf(draft.invoiceData).nombre, ACME.name)
   assert.equal(issuerOf(draft.invoiceData).nit, ACME.nit)
@@ -61,6 +63,7 @@ test('a draft takes its issuer from the company, not from a keyboard', async () 
 test('an issuer typed by hand is overwritten by the company', async () => {
   const draft = await invoices().createInvoice({
     templateId,
+    companyId,
     data: { ...DATA, emisor: { nombre: 'Lo que sea', nit: '000' } },
     items: ITEMS,
   })
@@ -69,7 +72,7 @@ test('an issuer typed by hand is overwritten by the company', async () => {
 })
 
 test('changing the company reaches drafts and never an issued document', async () => {
-  const draft = await invoices().createInvoice({ templateId, data: DATA, items: ITEMS })
+  const draft = await invoices().createInvoice({ templateId, companyId, data: DATA, items: ITEMS })
   const issued = await issuance().issueInvoice(draft.id)
   assert.equal(issued.status, 'issued')
 
@@ -79,12 +82,12 @@ test('changing the company reaches drafts and never an issued document', async (
   assert.equal(issuerOf(stored.invoiceData).nombre, ACME.name)
   assert.equal(stored.issuer.nombre, ACME.name)
 
-  const later = await invoices().createInvoice({ templateId, data: DATA, items: ITEMS })
+  const later = await invoices().createInvoice({ templateId, companyId, data: DATA, items: ITEMS })
   assert.equal(issuerOf(later.invoiceData).nombre, 'Acme S.A.')
 })
 
 test('issuing freezes who issued it', async () => {
-  const draft = await invoices().createInvoice({ templateId, data: DATA, items: ITEMS })
+  const draft = await invoices().createInvoice({ templateId, companyId, data: DATA, items: ITEMS })
 
   const result = await issuance().issueInvoice(draft.id)
 

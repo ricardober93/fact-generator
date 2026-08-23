@@ -18,12 +18,18 @@ export interface ISessionOverrides {
 
 const testJwt = new TestJwt()
 
+let sessionCompanyId = 'empresa-1'
+
+export function setSessionCompany(companyId: string): void {
+  sessionCompanyId = companyId
+}
+
 export function sessionHeaders(overrides: ISessionOverrides = {}): Record<string, string> {
   const session = {
     email: overrides.email ?? OPERATOR,
     userId: overrides.userId ?? 'user-1',
     role: overrides.role ?? 'administrador',
-    companyId: overrides.companyId ?? 'empresa-1',
+    companyId: overrides.companyId ?? sessionCompanyId,
   }
   return { Cookie: `${testJwt.config.cookieName}=${testJwt.sign(session)}` }
 }
