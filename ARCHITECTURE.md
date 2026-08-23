@@ -33,31 +33,28 @@ bundle del island y el build falla. La herramienta ya es el test.
 
 ```
 src/
-  _run_.ts                          boot (excluido del scanner)
-  kernel/                         ◄ lo compartido, con puerta (§5)
-    paths.ts  cents.ts  versionKey.ts
-  numbering/                      ◄ módulo: numera series, no sabe qué es una factura
-    app.ts                          la superficie: lo único importable desde fuera
-    NumberRangeController.tsx
-    models/  ui/                  ◄ interior
-  invoice/
-    app.ts                          la superficie
-    TemplateController.tsx          @uiController({ path: '/templates', app: true })
-    EmbedController.tsx             @uiController('/embed')
-    Issuance.ts                     servicio: emitir y corregir
-    render/                       ◄ isomorfo · sin IO · sin la raíz del framework
-      render.tsx                    render(doc, data, params, assets) → JSX
-      bind.ts                       {{ruta.al.dato|filtro}} → valor
-      theme.ts                      tokens → CSS custom properties
-      blocks/
-        registry.ts
-        text.tsx  image.tsx  box.tsx  line.tsx
-    models/
-      template/Template.ts + TemplateRepository.ts
-      asset/Asset.ts + AssetRepository.ts
-    ui/
-      pages/                        páginas SSR del editor
-      *.island.tsx                  lo interactivo (lienzo, inspector, paleta)
+  _run_.ts                      boot (excluido del scanner)
+
+  kernel/                     ◄ lo compartido, con puerta (§5)
+    paths.ts  cents.ts  versionKey.ts  README.md
+
+  auth/                       ◄ quién entra, con qué rol, en qué empresa
+    app.ts  AuthController.tsx  RequireSession.ts  RequireRole.ts
+    models/User.ts + UserRepository.ts
+
+  company/                    ◄ la empresa emisora
+    app.ts  CompanyController.tsx  models/  ui/
+
+  numbering/                  ◄ numera series; no sabe qué es una factura
+    app.ts  NumberRangeController.tsx  models/  ui/
+
+  invoice/                    ◄ el documento, su diseño y su emisión
+    app.ts
+    InvoiceController.tsx  TemplateController.tsx  EmbedController.tsx
+    Issuance.ts                 servicio: emitir y corregir
+    render/                   ◄ isomorfo · sin IO · sin la raíz del framework
+      render.tsx  bind.ts  theme.ts  blocks/
+    models/  ui/  templates/
 ```
 
 Es el layout canónico del framework: carpeta de feature, controladores en su raíz,
@@ -92,7 +89,13 @@ Dentro de `render/` y de los árboles de island: **imports relativos**. El bundl
 un mapa `alias` de esbuild y no lee `tsconfig.paths`, así que `@/` solo sirve en código de
 servidor.
 
-## 3. El eje de crecimiento: el registro de bloques
+## 3. Los dos ejes de crecimiento
+
+El sistema crece por dos sitios y **solo** por dos. El documento crece por el registro de
+bloques; el sistema crece por módulos hermanos en `src/`. Cualquier otra cosa que quiera
+crecer —un plugin, un hook, un event bus— no tiene sitio por diseño.
+
+### 3.1 El documento: el registro de bloques
 
 Un tipo de bloque es **un archivo**. Aporta schema, defaults, render e inspector, y con eso
 aparece en la paleta, se valida, se pinta y tiene panel de propiedades.
@@ -110,6 +113,24 @@ export default defineBlock({
 
 Es el único punto de extensión del proyecto. No hay sistema de plugins, ni hooks, ni
 eventos: si el producto crece, crece por aquí.
+
+### 3.2 El sistema: módulos hermanos
+
+Un módulo nuevo es una carpeta nueva en `src/`, y el escáner la encuentra sola. Cada uno
+declara su superficie en `app.ts` y nada más sale de él:
+
+| módulo       | qué expone en `app.ts`                              |
+| ------------ | --------------------------------------------------- |
+| `auth/`      | las guardas de sesión y de rol                      |
+| `company/`   | el repositorio de empresas y su controlador         |
+| `numbering/` | el repositorio de rangos, su controlador y `assign` |
+| `invoice/`   | nada todavía: aún no sirve a nadie, y está escrito  |
+
+Lo que **no** sale es tan importante como lo que sale. `numbering/` no expone `chooseRange`
+ni la entidad completa: cuando la emisión necesitó elegir un rango, la respuesta no fue
+abrir la puerta sino que el módulo expusiera la capacidad —«asígname un número»— con la
+comprobación de número ocupado entrando como callback. Así la numeración sigue sin saber
+qué es una factura.
 
 ## 4. El modelo del documento
 
@@ -192,6 +213,10 @@ Consecuencia de la falta de proyección de columnas: los logos van en su **propi
 
 ## 7. Decisiones cerradas
 
+> Esta lista está **duplicada** en el bloque `context:` de `openspec/config.yaml`, que es lo
+> que se inyecta como contexto en cada artefacto de OpenSpec. Si cambias una decisión, cambia
+> las dos. Allí está el **qué** en una línea; aquí está el **porqué**.
+
 - La **plantilla** es presentacional; el **documento emitido** es un registro fiscal. La
   línea está exactamente aquí:
 
@@ -245,6 +270,25 @@ Consecuencia de la falta de proyección de columnas: los logos van en su **propi
   (`{ status: 'rejected', reason }`): sin rango, rango agotado o caducado, número ocupado o
   fuera de rango, prefijo ambiguo, aritmética que no cuadra. Solo lo excepcional —escribir
   sobre una emitida, un documento que no existe— lanza.
+
+- **La identidad vive en la base, no en el entorno.** `AUTH_EMAIL` y `AUTH_PASSWORD` son la
+  **semilla** del primer administrador: si no hay ningún usuario se crea con ellas, y si los
+  hay se ignoran. El primer arranque sigue costando dos variables y nadie tiene que crear un
+  usuario para empezar. Sin `JWT_SECRET` la aplicación no arranca, y eso no cambia.
+- **La empresa activa es un dato de la sesión firmada.** Un usuario pertenece a una o varias
+  empresas; la sesión dice en cuál opera y cambiarla vuelve a firmar la cookie tras comprobar
+  la pertenencia. Nunca una cookie aparte ni estado del cliente: con dos sitios donde vive la
+  respuesta, manda la que alguien olvidó comprobar.
+- **Tres roles, y las guardas van por ruta.** Administrador, cajero y lectura. Se aplican con
+  `@uiMiddleware` sobre la acción concreta, no sobre el controlador, porque el de facturas
+  mezcla ver —que puede todo el mundo— con emitir —que no—. Nadie puede quedarse sin
+  administrador: degradar o dar de baja al último de una empresa se rechaza.
+- **El emisor no se teclea.** Sale de la empresa, el servidor lo escribe en `emisor.*` al
+  guardar y lo congela al emitir. Junto con el número son los **caminos que escribe el
+  sistema**: no se ofrecen como campos y tampoco se le exigen a la persona al validar. En el
+  handoff sí se exigen, porque allí los pone quien llama.
+- **La numeración numera series y rangos con dueño**, y no interpreta ninguna de las dos
+  claves. Es la regla de opacidad de §5b aplicada entre módulos.
 
 ### Seguridad
 
