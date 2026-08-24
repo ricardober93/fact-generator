@@ -1,2 +1,5 @@
 export { CatalogSource } from './CatalogSource'
+export { HttpCatalogSource } from './HttpCatalogSource'
+export { LocalCatalogSource } from './LocalCatalogSource'
+export type { ICatalogSource } from './ICatalogSource'
 export type { ICatalogItem } from './CatalogItem'

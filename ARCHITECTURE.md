@@ -48,6 +48,12 @@ src/
   numbering/                  ◄ numera series; no sabe qué es una factura
     app.ts  NumberRangeController.tsx  models/  ui/
 
+  inventory/                  ◄ artículos y existencias; no sabe qué es una factura
+    app.ts  ArticleController.tsx  Stock.ts  models/  ui/
+
+  catalog/                    ◄ el contrato de origen, con dos implementaciones
+    app.ts  ICatalogSource.ts  HttpCatalogSource.ts  LocalCatalogSource.ts
+
   invoice/                    ◄ el documento, su diseño y su emisión
     app.ts
     InvoiceController.tsx  TemplateController.tsx  EmbedController.tsx
@@ -119,12 +125,14 @@ eventos: si el producto crece, crece por aquí.
 Un módulo nuevo es una carpeta nueva en `src/`, y el escáner la encuentra sola. Cada uno
 declara su superficie en `app.ts` y nada más sale de él:
 
-| módulo       | qué expone en `app.ts`                              |
-| ------------ | --------------------------------------------------- |
-| `auth/`      | las guardas de sesión y de rol                      |
-| `company/`   | el repositorio de empresas y su controlador         |
-| `numbering/` | el repositorio de rangos, su controlador y `assign` |
-| `invoice/`   | nada todavía: aún no sirve a nadie, y está escrito  |
+| módulo       | qué expone en `app.ts`                               |
+| ------------ | ---------------------------------------------------- |
+| `auth/`      | las guardas de sesión y de rol                       |
+| `company/`   | el repositorio de empresas y su controlador          |
+| `numbering/` | el repositorio de rangos, su controlador y `assign`  |
+| `inventory/` | el repositorio de artículos y la operación de ajuste |
+| `catalog/`   | el contrato de origen y sus dos implementaciones     |
+| `invoice/`   | nada todavía: aún no sirve a nadie, y está escrito   |
 
 Lo que **no** sale es tan importante como lo que sale. `numbering/` no expone `chooseRange`
 ni la entidad completa: cuando la emisión necesitó elegir un rango, la respuesta no fue
@@ -284,6 +292,15 @@ Consecuencia de la falta de proyección de columnas: los logos van en su **propi
   «emite este borrador», y uno ya emitido se devuelve tal cual.
 - **La numeración numera series con dueño y no interpreta ninguna de las dos claves**, que es
   la regla de opacidad de §5 aplicada hacia dentro.
+- **Inventario es un módulo hermano, no otra aplicación.** Se decidió al revés en
+  `catalog-source` —«su especificación vive en su repositorio»— y ese repositorio nunca existió,
+  así que el catálogo se quedó sin proveedor. Vive aquí hablando por el contrato que ya existía,
+  de modo que sacarlo a su despliegue siga siendo cambio de transporte y no rediseño (§5).
+- **Un origen de catálogo puede venir de fuera o de dentro, y nunca los dos.** Con `CATALOG_URL`
+  manda el externo; sin ella, el local si existe. No se mezclan porque dos orígenes pueden dar la
+  misma `ref` para cosas distintas, y siendo opaca nadie podría desambiguarlas sin partirla.
+- **Inventario no sabe qué es una factura.** El adaptador que lo convierte en catálogo vive en
+  `catalog/`, no en `inventory/`: así el proveedor no aprende el vocabulario de quien lo consume.
 
 ### Seguridad
 

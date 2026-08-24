@@ -186,7 +186,7 @@ export class InvoiceController {
 
   @action()
   async searchCatalog(input: CatalogSearchDto): Promise<{ items: ICatalogItem[] }> {
-    return { items: await this.catalog.search(input.text) }
+    return { items: await this.catalog.search(this.companyId, input.text) }
   }
 
   @action()
@@ -221,7 +221,7 @@ export class InvoiceController {
         issued={invoice ? invoice.issued : false}
         numero={invoice ? invoice.numero : ''}
         docType={invoice ? invoice.docType : 'factura'}
-        catalogEnabled={this.catalog.configured}
+        catalogEnabled={this.catalog.available}
         correctionReason={invoice ? invoice.correctionReason : ''}
         corrects={invoice ? invoice.corrects : null}
         templateId={template.id}
