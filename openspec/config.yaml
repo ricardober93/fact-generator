@@ -52,6 +52,11 @@ context: |
   - Un bloque nunca guarda un valor literal de tema: guarda una referencia a token
     ("@primary", "@logo"). Por eso un parámetro del iframe repinta el documento entero
     sin tocar ningún bloque.
+  - Inventario es un MÓDULO HERMANO de este repo, no otra aplicación: se decidió al revés en
+    catalog-source y ese repositorio nunca existió. Habla por el contrato que ya existía.
+  - Un origen de catálogo viene de fuera o de dentro, NUNCA los dos: con CATALOG_URL manda el
+    externo, sin ella el local. Mezclar rompería la opacidad de la ref.
+  - Inventario no sabe qué es una factura: el adaptador vive en catalog/, no en inventory/.
   - Abierta: paginación en pantalla. Posición por defecto = papel continuo; el corte real
     se ve en Ctrl+P. paged.js solo si se justifica.
 
@@ -65,7 +70,10 @@ context: |
       auth/        User + sesión + RequireSession/RequireRole
       company/     la empresa emisora
       numbering/   numera series con dueño; no sabe qué es una factura
-      catalog/     origen opcional de líneas (sin CATALOG_URL no existe)
+      inventory/   artículos y existencias; no sabe qué es una factura
+      catalog/     el contrato de origen de líneas, con dos implementaciones:
+                   con CATALOG_URL manda la externa, sin ella la local (inventory).
+                   Nunca las dos a la vez, y sin ninguna se escribe a mano
       invoice/     el documento, su diseño y su emisión
         Issuance.ts              servicio: emitir y corregir
         render/                  isomorfo: render(doc, data, params, assets) -> JSX.

@@ -1,112 +1,73 @@
 import assert from 'node:assert/strict'
-import { createServer, type Server } from 'node:http'
-import test, { after, before } from 'node:test'
-import { Env } from '@wabot-dev/framework'
+import test from 'node:test'
+import { container, Env } from '@wabot-dev/framework'
+import { useMemoryRepositories } from '@wabot-dev/framework/testing'
+import { ArticleRepository } from '../inventory/app'
 import { CatalogSource } from './CatalogSource'
+import { HttpCatalogSource } from './HttpCatalogSource'
+import { LocalCatalogSource } from './LocalCatalogSource'
 
-let server: Server
-let baseUrl = ''
-let reply: { status: number; body: unknown; delayMs?: number } = { status: 200, body: [] }
-let lastPath = ''
+useMemoryRepositories()
 
-before(async () => {
-  server = createServer((req, res) => {
-    lastPath = req.url ?? ''
-    const send = () => {
-      res.writeHead(reply.status, { 'content-type': 'application/json' })
-      res.end(typeof reply.body === 'string' ? reply.body : JSON.stringify(reply.body))
-    }
-    if (reply.delayMs) setTimeout(send, reply.delayMs)
-    else send()
-  })
-  await new Promise<void>((resolve) => server.listen(0, resolve))
-  const address = server.address()
-  baseUrl = `http://127.0.0.1:${typeof address === 'object' && address ? address.port : 0}`
-})
+const ACME = 'empresa-acme'
+const OTRA = 'empresa-otra'
 
-after(async () => {
-  await new Promise<void>((resolve) => server.close(() => resolve()))
-})
-
-function source(url = baseUrl): CatalogSource {
-  process.env.CATALOG_URL = url
-  return new CatalogSource(new Env())
+function articles(): ArticleRepository {
+  return container.resolve(ArticleRepository)
 }
 
-const ONE = { ref: 'sku:1', code: 'A-1', label: 'Producto uno', unitPrice: 25, taxRate: 19 }
+function sourceWith(url: string): CatalogSource {
+  process.env.CATALOG_URL = url
+  return new CatalogSource(new HttpCatalogSource(new Env()), container.resolve(LocalCatalogSource))
+}
 
-test('without a configured source there is no source and no call', async () => {
-  const offline = source('')
+async function anArticle(companyId: string, code: string, name: string) {
+  return articles().createArticle({ companyId, code, name, unitPrice: 30, taxRate: 19 })
+}
 
-  assert.equal(offline.configured, false)
-  assert.deepEqual(await offline.search('lo que sea'), [])
-  assert.equal(await offline.findByRef('sku:1'), null)
+test('with no variable and no local catalog there is no source and no results', async () => {
+  const source = sourceWith('')
+
+  assert.deepEqual(await source.search('empresa-vacia', 'lo que sea'), [])
+  assert.equal(await source.findByRef('empresa-vacia', 'sku:1'), null)
 })
 
-test('searching goes to the versioned route', async () => {
-  reply = { status: 200, body: [ONE] }
+test('with no variable the local catalog serves the selector', async () => {
+  await anArticle(ACME, 'L-1', 'Lámpara de escritorio')
+  const source = sourceWith('')
 
-  const found = await source().search('uno')
+  assert.equal(source.available, true)
 
-  assert.match(lastPath, /^\/v1\/items\?q=uno$/)
-  assert.deepEqual(found, [ONE])
+  const found = await source.search(ACME, 'lámpara')
+  assert.equal(found.length, 1)
+  assert.equal(found[0]?.label, 'Lámpara de escritorio')
+  assert.equal(found[0]?.unitPrice, 30)
 })
 
-test('fields the contract does not declare are ignored', async () => {
-  reply = { status: 200, body: [{ ...ONE, categoria: 'x', proveedor: 'y', stock: 3 }] }
+test('a local reference comes back character for character', async () => {
+  const article = await anArticle(ACME, 'L-2', 'Cable de red')
+  const source = sourceWith('')
 
-  assert.deepEqual(await source().search(''), [ONE])
+  const found = await source.search(ACME, 'Cable de red')
+  const byRef = await source.findByRef(ACME, found[0]?.ref ?? '')
+
+  assert.equal(found[0]?.ref, article.id)
+  assert.equal(byRef?.ref, article.id)
 })
 
-test('an incomplete item is discarded and the rest survive', async () => {
-  reply = { status: 200, body: [{ ref: 'sku:2', code: 'B' }, ONE, { label: 'sin ref' }] }
+test('the local catalog filters by company', async () => {
+  await anArticle(ACME, 'L-3', 'Sólo de acme')
+  const source = sourceWith('')
 
-  assert.deepEqual(await source().search(''), [ONE])
+  assert.deepEqual(await source.search(OTRA, 'Sólo de acme'), [])
+  assert.equal(await source.findByRef(OTRA, 'L-3'), null)
 })
 
-test('a missing tax rate counts as zero, because plenty of things have none', async () => {
-  reply = { status: 200, body: [{ ref: 'r', label: 'Servicio', unitPrice: 10 }] }
+test('the variable wins over the local catalog', async () => {
+  await anArticle(ACME, 'L-4', 'Nunca deberia salir')
+  const source = sourceWith('http://127.0.0.1:1/nothing-here')
 
-  const found = await source().search('')
+  const found = await source.search(ACME, 'Nunca deberia salir')
 
-  assert.equal(found[0]?.taxRate, 0)
-})
-
-test('one is fetched by its reference, url-encoded', async () => {
-  reply = { status: 200, body: ONE }
-
-  const found = await source().findByRef('sku:1')
-
-  assert.equal(lastPath, '/v1/items/sku%3A1')
-  assert.deepEqual(found, ONE)
-})
-
-test('a source that answers with an error gives no results, not an exception', async () => {
-  reply = { status: 500, body: { boom: true } }
-
-  assert.deepEqual(await source().search('uno'), [])
-  assert.equal(await source().findByRef('sku:1'), null)
-})
-
-test('a shape that does not fit is treated as no results', async () => {
-  reply = { status: 200, body: { productos: [ONE] } }
-
-  assert.deepEqual(await source().search('uno'), [])
-})
-
-test('a body that is not even JSON does not break anything', async () => {
-  reply = { status: 200, body: 'no soy json' }
-
-  assert.deepEqual(await source().search('uno'), [])
-})
-
-test('a source that is not there gives no results', async () => {
-  assert.deepEqual(await source('http://127.0.0.1:1').search('uno'), [])
-})
-
-test('a source that takes too long is abandoned', async () => {
-  reply = { status: 200, body: [ONE], delayMs: 2500 }
-
-  assert.deepEqual(await source().search('uno'), [])
-  reply = { status: 200, body: [], delayMs: 0 }
+  assert.deepEqual(found, [])
 })

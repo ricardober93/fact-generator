@@ -1,42 +1,29 @@
-import { Env, singleton } from '@wabot-dev/framework'
-import { readCatalogItem, readCatalogItems, type ICatalogItem } from './CatalogItem'
-
-const TIMEOUT_MS = 2000
+import { singleton } from '@wabot-dev/framework'
+import type { ICatalogItem } from './CatalogItem'
+import { HttpCatalogSource } from './HttpCatalogSource'
+import type { ICatalogSource } from './ICatalogSource'
+import { LocalCatalogSource } from './LocalCatalogSource'
 
 @singleton()
-export class CatalogSource {
-  private readonly baseUrl: string
+export class CatalogSource implements ICatalogSource {
+  constructor(
+    private readonly external: HttpCatalogSource,
+    private readonly local: LocalCatalogSource,
+  ) {}
 
-  constructor(env: Env) {
-    if (!env) throw new Error('CatalogSource requires the environment')
-    this.baseUrl = env.requireString('CATALOG_URL', { default: '' }).trim().replace(/\/+$/, '')
+  get available(): boolean {
+    return this.chosen.available
   }
 
-  get configured(): boolean {
-    return this.baseUrl.length > 0
+  async search(owner: string, text: unknown): Promise<ICatalogItem[]> {
+    return this.chosen.search(owner, text)
   }
 
-  async search(text: unknown): Promise<ICatalogItem[]> {
-    if (!this.configured) return []
-    const query = typeof text === 'string' ? text.trim() : ''
-    const url = `${this.baseUrl}/v1/items?q=${encodeURIComponent(query)}`
-    return readCatalogItems(await this.read(url))
+  async findByRef(owner: string, ref: unknown): Promise<ICatalogItem | null> {
+    return this.chosen.findByRef(owner, ref)
   }
 
-  async findByRef(ref: unknown): Promise<ICatalogItem | null> {
-    if (!this.configured) return null
-    if (typeof ref !== 'string' || ref.length === 0) return null
-    const url = `${this.baseUrl}/v1/items/${encodeURIComponent(ref)}`
-    return readCatalogItem(await this.read(url))
-  }
-
-  private async read(url: string): Promise<unknown> {
-    try {
-      const response = await fetch(url, { signal: AbortSignal.timeout(TIMEOUT_MS) })
-      if (!response.ok) return null
-      return await response.json()
-    } catch {
-      return null
-    }
+  private get chosen(): ICatalogSource {
+    return this.external.available ? this.external : this.local
   }
 }

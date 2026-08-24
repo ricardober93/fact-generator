@@ -4,7 +4,7 @@ import test, { after, before } from 'node:test'
 import { container, Env, InMemoryLocker, Locker } from '@wabot-dev/framework'
 import { useMemoryRepositories } from '@wabot-dev/framework/testing'
 import { createSignedInHarness, type ISignedInHarness } from '../auth/__fixtures__/signedIn'
-import { CatalogSource } from '../catalog/app'
+import { CatalogSource, HttpCatalogSource, LocalCatalogSource } from '../catalog/app'
 import { seedCompany } from '../company/__fixtures__/seededCompany'
 import { InvoiceController } from './InvoiceController'
 import type { IInvoiceRecord } from './models/invoice/Invoice'
@@ -36,7 +36,10 @@ before(async () => {
   const address = provider.address()
   const port = typeof address === 'object' && address ? address.port : 0
   process.env.CATALOG_URL = `http://127.0.0.1:${port}`
-  container.registerInstance(CatalogSource, new CatalogSource(new Env()))
+  container.registerInstance(
+    CatalogSource,
+    new CatalogSource(new HttpCatalogSource(new Env()), container.resolve(LocalCatalogSource)),
+  )
 
   companyId = await seedCompany()
   const doc = findTemplatePreset('chevron-slate')!.build()
